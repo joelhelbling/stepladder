@@ -24,7 +24,12 @@ module Stepladder
       end
       subject { source_worker | subscribing_worker }
 
-      specify "the daisy chain" do
+      specify "the subcriber has a supplier" do
+        subject.inspect
+        subscribing_worker.supplier.should == source_worker
+      end
+
+      specify "integration" do
         subject.product.should == 3
       end
 
