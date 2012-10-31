@@ -4,7 +4,8 @@ module Stepladder
 
     def initialize(p={}, &block)
       @supplier = p[:supplier]
-      @task     = block || p[:task]
+      @filter   = p[:filter] || default_filter
+      @task     = block || p[:task] || default_task
       from = caller.first
       def from.handoff(value)
         handoff value
@@ -25,9 +26,28 @@ module Stepladder
     def work
       @my_little_machine ||= Fiber.new do
         loop do
-          handoff @task.call(supplier && supplier.product)
+          value = supplier && supplier.product
+          if value.nil? || passes_filter?(value)
+            handoff @task.call(value)
+          end
         end
       end
+    end
+
+    def default_task
+      Proc.new do |value|
+        value
+      end
+    end
+
+    def default_filter
+      Proc.new do |value|
+        true
+      end
+    end
+
+    def passes_filter?(value)
+      @filter.call value
     end
 
   end
