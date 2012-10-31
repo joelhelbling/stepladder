@@ -77,7 +77,7 @@ end
 ...we can define a subscribing worker with a filter:
 
 ```ruby
-odd_number_filter = Proc.new { |number| number % 2 > 0
+odd_number_filter = Proc.new { |number| number % 2 > 0 }
 filter_worker = Stepladder::Worker.new filter: odd_number_filter
 
 filter_worker.product #=> 1
@@ -125,7 +125,7 @@ item number two during operation number seven, we nonetheless had to wait
 through a complete run of all items through operations 1 - 6 before we
 receive the bad news early in operation seven.  Imagine if the first six
 operations take a long time to each complete?  Furthermore, what if the
-operations on all incomplete items must be versed in some way (e.g.
+operations on all incomplete items must be reversed in some way (e.g.
 cleaned up or rolled back)?  It would be far less messy and far more
 expedient if each item could be processed though all operations before
 the next one is begun.
@@ -146,7 +146,7 @@ is a callable ruby object (such as a Proc or a lambda).
 The scope of the work is whatever scope existed in the task when you
 initially created the worker.  And if you want a worker to maintain its
 own internal state, you can simply include a loop within the worker's
-task, and use the #handoff method to pass along the worker's product at
+task, and use the `#handoff` method to pass along the worker's product at
 the appropriate point in the loop.
 
 For example:
@@ -176,9 +176,9 @@ just _common objects_ coupling-- this little remaining coupling is
 mitigated by the possibility of having coupled code _live together_.
 I call this feature the _folded collaborators_ effect.
 
-Consider the following --code--vaporware:
+Consider the following -code- vaporware:
 
-```
+```ruby
 ME = "joelhelbling"
 
 module Stepladder
@@ -186,7 +186,7 @@ module Stepladder
     twitter_api.fetch_my_tweets
   end
 
-  about_me_filtera     = Proc.new { |tweet| tweet.referenced.include? ME }
+  about_me_filter      = Proc.new { |tweet| tweet.referenced.include? ME }
   just_about_me_getter = Worker.new filter: about_me_filter
 
   tweet_formatter = Worker.new do |tweet|
@@ -216,6 +216,14 @@ community.  We quickly began riffing on a fictional framework called
 be) using.
 
 I have waited a long time to make that farce a reality, but hey, I take
-joke frameworks very seriously.
+joke frameworks very seriously. ;)
 ([Really?](http://github.com/joelhelbling/really))
 
+## Roadmap
+
+- add a nicer top-layer to the DSL --no reason we should have to do
+  all that `Worker.new` stuff
+- make this into a gem
+- add support for a collector worker which collects values from its
+  supplier, and then passes them downstream in batches (defined by
+  its task block, of course).
