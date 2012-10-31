@@ -21,6 +21,11 @@ module Stepladder
       subscribing_worker
     end
 
+    # provided for instance overrides
+    def task(value)
+      value
+    end
+
     private
 
     def work
@@ -36,8 +41,16 @@ module Stepladder
 
     def default_task
       Proc.new do |value|
-        value
+        if task_accepts_a_value?
+          task value
+        else
+          task
+        end
       end
+    end
+
+    def task_accepts_a_value?
+      self.method(:task).arity > 0
     end
 
     def default_filter
