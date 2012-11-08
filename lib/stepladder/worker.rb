@@ -5,7 +5,7 @@ module Stepladder
     def initialize(p={}, &block)
       @supplier = p[:supplier]
       @filter   = p[:filter] || default_filter
-      @task     = block || p[:task] || default_task
+      @task     = block || p[:task]
       from = caller.first
       def from.handoff(value)
         handoff value
@@ -13,17 +13,20 @@ module Stepladder
     end
 
     def product
-      work.resume
+      if ready_to_work?
+        work.resume
+      end
+    end
+
+    def ready_to_work?
+      @task ||= default_task
+      raise "This worker's task expects to receive a value from a supplier, but has no supplier." if (task_accepts_a_value? && supplier.nil?)
+      true
     end
 
     def |(subscribing_worker)
       subscribing_worker.supplier = self
       subscribing_worker
-    end
-
-    # provided for instance overrides
-    def task(value)
-      value
     end
 
     private
@@ -40,16 +43,26 @@ module Stepladder
     end
 
     def default_task
-      Proc.new do |value|
-        if task_accepts_a_value?
-          task value
+      if task_method_exists?
+        if task_method_accepts_a_value?
+          Proc.new { |value| task value }
         else
-          task
+          Proc.new { task }
         end
+      else # no task method, so assuming we have supplier...
+        Proc.new { |value| value }
       end
     end
 
     def task_accepts_a_value?
+      @task.arity > 0
+    end
+
+    def task_method_exists?
+      self.methods.include? :task
+    end
+
+    def task_method_accepts_a_value?
       self.method(:task).arity > 0
     end
 

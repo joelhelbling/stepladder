@@ -5,11 +5,11 @@ module Stepladder
   describe Worker do
     it { should respond_to(:product, :supplier, :supplier=) }
 
-    describe "#product" do
-      before { Fiber.any_instance.stub(:resume).and_return(result) }
-      let(:result) { :foo }
-      its(:product) { should == result }
-    end
+    # describe "#product" do
+    #   before { Fiber.any_instance.stub(:resume).and_return(result) }
+    #   let(:result) { :foo }
+    #   its(:product) { should == result }
+    # end
 
     describe "different ways to assign a task" do
 
@@ -28,9 +28,12 @@ module Stepladder
         subject { Worker.new }
 
         context "which accepts an argument" do
+          let(:supplier) { double }
           before do
+            supplier.stub(:product).and_return(:foo)
+            subject.supplier = supplier
             def subject.task(value)
-              :foo
+              value
             end
           end
           its(:product) { should == :foo }
@@ -43,6 +46,13 @@ module Stepladder
             end
           end
           its(:product) { should == :foo }
+        end
+      end
+
+      context "with task which accepts an argument, but no supplier" do
+        subject { Worker.new { |value| value.do_whatnot } }
+        it "throws an exception" do
+          expect { subject.product }.to raise_error(/has no supplier/)
         end
       end
 
