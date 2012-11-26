@@ -5,13 +5,20 @@ module Stepladder
   describe Worker do
     it { should respond_to(:product, :supplier, :supplier=) }
 
-    # describe "#product" do
-    #   before { Fiber.any_instance.stub(:resume).and_return(result) }
-    #   let(:result) { :foo }
-    #   its(:product) { should == result }
-    # end
+    describe "#product" do
+      before do
+        supplier.stub(:product).and_return(result)
+        subject.supplier = supplier
+      end
+      let(:result) { :foo }
+      let(:supplier) { double }
+      it "resumes a fiber" do
+        Fiber.any_instance.should_receive(:resume).and_return(result)
+        subject.product.should == result
+      end
+    end
 
-    describe "different ways to assign a task" do
+    describe "assigning a task" do
 
       context "with a block" do
         subject { Worker.new { :foo } }

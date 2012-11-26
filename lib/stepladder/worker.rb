@@ -20,7 +20,9 @@ module Stepladder
 
     def ready_to_work?
       @task ||= default_task
-      raise "This worker's task expects to receive a value from a supplier, but has no supplier." if (task_accepts_a_value? && supplier.nil?)
+      if (task_accepts_a_value? && supplier.nil?)
+        raise "This worker's task expects to receive a value from a supplier, but has no supplier."
+      end
       true
     end
 
