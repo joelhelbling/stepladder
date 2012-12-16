@@ -5,139 +5,169 @@ module Stepladder
   describe Worker do
     it { should respond_to(:product, :supplier, :supplier=) }
 
-    describe "#product" do
+    describe "can accept a task" do
+      let(:result) { double }
       before do
-        supplier.stub(:product).and_return(result)
-        subject.supplier = supplier
-      end
-      let(:result) { :foo }
-      let(:supplier) { double }
-      it "resumes a fiber" do
-        Fiber.any_instance.should_receive(:resume).and_return(result)
-        subject.product.should == result
-      end
-    end
-
-    describe "assigning a task" do
-
-      context "with a block" do
-        subject { Worker.new { :foo } }
-        its(:product) { should == :foo }
+        result.stub(:copasetic?).and_return(true)
       end
 
-      context "with a callable :task parameter" do
-        let(:callable_task) { Proc.new { :foo } }
-        subject { Worker.new task: callable_task }
-        its(:product) { should == :foo }
+      context "via the constructor" do
+
+        context "as a block passed to ::new" do
+          subject do
+            Worker.new do
+              result
+            end
+          end
+
+          its(:product) { should be_copasetic }
+        end
+
+        context "as {:task => <proc/lambda>} passed to ::new" do
+          let(:callable_task) { Proc.new { result } }
+
+          subject do
+            Worker.new task: callable_task
+          end
+
+          its(:product) { should be_copasetic }
+        end
       end
 
-      context "with an instance method" do
+      # Note that tasks defined via instance methods will
+      # only have access to the scope of the worker.  If
+      # you want a worker to have access to a scope outside
+      # the worker, use a Proc or Lambda via the constructor
+      context "via an instance method" do
         subject { Worker.new }
 
         context "which accepts an argument" do
           let(:supplier) { double }
           before do
-            supplier.stub(:product).and_return(:foo)
+            supplier.stub(:product).and_return(result)
             subject.supplier = supplier
             def subject.task(value)
-              value
+              handoff value
             end
           end
-          its(:product) { should == :foo }
+          its(:product) { should be_copasetic }
         end
 
         context "or even one which accepts no arguments" do
           before do
             def subject.task
-              :foo
+              :copasetic
             end
           end
-          its(:product) { should == :foo }
+          its(:product) { should be :copasetic }
         end
       end
 
-      context "with task which accepts an argument, but no supplier" do
-        subject { Worker.new { |value| value.do_whatnot } }
-        it "throws an exception" do
-          expect { subject.product }.to raise_error(/has no supplier/)
+      context "However, when a worker's task accepts an argument," do
+        context "but the worker has no supplier," do
+          subject { Worker.new { |value| value.do_whatnot } }
+          specify "#product throws an exception" do
+            expect { subject.product }.to raise_error(/has no supplier/)
+          end
         end
       end
 
     end
 
-    describe "worker types" do
+    describe "= WORKER TYPES =" do
+
       let(:source_worker) do
         Worker.new do
-          (1..3).each { |number| handoff number }
-          handoff nil
+          numbers = (1..3).to_a
+          until numbers.empty?
+            handoff numbers.shift
+          end
         end
       end
+
       let(:relay_worker) do
         Worker.new do |number|
           number && number * 3
         end
       end
+
       let(:filter) do
         Proc.new do |number|
           number % 2 > 0
         end
       end
+
       let(:filter_worker) do
         Worker.new filter: filter
       end
 
-      describe "the source" do
-        subject { source_worker }
+      describe "The Source Worker" do
+        subject(:the_self_starter) { source_worker }
 
-        it "generates products without a supplier" do
-          subject.product.should == 1
-          subject.product.should == 2
-          subject.product.should == 3
-          subject.product.should be_nil
+        it "generates products without a supplier." do
+          the_self_starter.product.should == 1
+          the_self_starter.product.should == 2
+          the_self_starter.product.should == 3
+          the_self_starter.product.should be_nil
         end
       end
 
-      describe "the relay worker" do
+      describe "The Relay Worker" do
         before do
           relay_worker.supplier = source_worker
         end
 
-        subject { relay_worker }
+        subject(:triplizer) { relay_worker }
 
-        it "operates on values received from its supplier" do
-          subject.product.should == 3
-          subject.product.should == 6
-          subject.product.should == 9
-          subject.product.should be_nil
+        it "operates on values received from its supplier." do
+          triplizer.product.should == 3
+          triplizer.product.should == 6
+          triplizer.product.should == 9
+          triplizer.product.should be_nil
         end
       end
 
-      describe "the filter" do
+      describe "The Filter" do
         before do
           filter_worker.supplier = source_worker
         end
 
-        subject { filter_worker }
+        subject(:oddball) { filter_worker }
 
-        it "selects only values which match" do
-          subject.product.should == 1
-          subject.product.should == 3
-          subject.product.should be_nil
+        it "passes through only select values." do
+          oddball.product.should == 1
+          oddball.product.should == 3
+          oddball.product.should be_nil
         end
       end
 
-      describe "pipeline dsl" do
+      describe "Also, there's a pipeline dsl:" do
         let(:subscribing_worker) { relay_worker }
         let(:pipeline) { source_worker | subscribing_worker }
 
         subject { pipeline }
 
-        specify "the subcriber has a supplier" do
+        it "lets you daisy-chain workers using \"|\"" do
           subject.inspect
           subscribing_worker.supplier.should == source_worker
         end
       end
 
     end
+
+    describe "#product" do
+      before do
+        supplier.stub(:product).and_return(result)
+        subject.supplier = supplier
+      end
+      let(:result)   { :foo }
+      let(:supplier) { double }
+
+      it "resumes a fiber" do
+        Fiber.any_instance.should_receive(:resume).and_return(result)
+        subject.product.should == result
+      end
+    end
+
   end
 end

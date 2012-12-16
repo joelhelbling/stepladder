@@ -6,10 +6,6 @@ module Stepladder
       @supplier = p[:supplier]
       @filter   = p[:filter] || default_filter
       @task     = block || p[:task]
-      from = caller.first
-      def from.handoff(value)
-        handoff value
-      end
     end
 
     def product
@@ -47,9 +43,9 @@ module Stepladder
     def default_task
       if task_method_exists?
         if task_method_accepts_a_value?
-          Proc.new { |value| task value }
+          Proc.new { |value| self.task value }
         else
-          Proc.new { task }
+          Proc.new { self.task }
         end
       else # no task method, so assuming we have supplier...
         Proc.new { |value| value }
