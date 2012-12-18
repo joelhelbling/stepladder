@@ -101,6 +101,8 @@ module Stepladder
         Worker.new filter: filter
       end
 
+      let(:collector_worker) { Worker.new }
+
       describe "The Source Worker" do
         subject(:the_self_starter) { source_worker }
 
@@ -138,6 +140,29 @@ module Stepladder
           oddball.product.should == 1
           oddball.product.should == 3
           oddball.product.should be_nil
+        end
+      end
+
+      describe "The Collector" do
+        before do
+          def collector_worker.task(value)
+            if value
+              @collection = [value]
+              while @collection.size < 3
+                @collection << supplier.product
+              end
+              @collection
+            end
+          end
+
+          collector_worker.supplier = source_worker
+        end
+
+        subject(:collector) { collector_worker }
+
+        it "collects values in threes" do
+          collector.product.should == [1,2,3]
+          collector.product.should be_nil
         end
       end
 
