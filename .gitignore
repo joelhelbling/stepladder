@@ -1,3 +1,4 @@
 ./spikes/*
 .rvmrc
 Gemfile.lock
+pkg

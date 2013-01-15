@@ -223,7 +223,3 @@ joke frameworks very seriously. ;)
 
 - add a nicer top-layer to the DSL --no reason we should have to do
   all that `Worker.new` stuff
-- make this into a gem
-- add support for a collector worker which collects values from its
-  supplier, and then passes them downstream in batches (defined by
-  its task block, of course).
