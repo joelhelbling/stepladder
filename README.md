@@ -1,3 +1,5 @@
+[![Code Climate](https://codeclimate.com/badge.png)](https://codeclimate.com/github/joelhelbling/stepladder)
+
 # The Stepladder Framework
 
 _"How many Ruby fibers does it take to screw in a lightbulb?"_
