@@ -1,6 +1,9 @@
 source 'http://rubygems.org'
 
 gem 'rake'
-gem 'cucumber'
-gem 'aruba'
 gem 'rspec'
+
+group :development do
+  gem 'cucumber'
+  gem 'aruba'
+end
