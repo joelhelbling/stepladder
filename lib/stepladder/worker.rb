@@ -6,6 +6,11 @@ module Stepladder
       @supplier = p[:supplier]
       @filter   = p[:filter] || default_filter
       @task     = block || p[:task]
+      # don't define default task here
+      # because we want to allow for
+      # an initialized worker to have
+      # a task injected, including
+      # method-based tasks.
     end
 
     def product
