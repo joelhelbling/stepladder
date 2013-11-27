@@ -168,12 +168,11 @@ module Stepladder
 
       describe "Also, there's a pipeline dsl:" do
         let(:subscribing_worker) { relay_worker }
-        let(:pipeline) { source_worker | subscribing_worker }
+        let!(:pipeline) { source_worker | subscribing_worker }
 
         subject { pipeline }
 
         it "lets you daisy-chain workers using \"|\"" do
-          subject.inspect
           subscribing_worker.supplier.should == source_worker
         end
       end
