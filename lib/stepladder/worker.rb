@@ -14,17 +14,12 @@ module Stepladder
     end
 
     def product
-      if ready_to_work?
-        work.resume
-      end
+      ensure_ready_to_work!
+      workflow.resume
     end
 
     def ready_to_work?
-      @task ||= default_task
-      if (task_accepts_a_value? && supplier.nil?)
-        raise "This worker's task expects to receive a value from a supplier, but has no supplier."
-      end
-      true
+      @task && (supplier || !task_accepts_a_value?)
     end
 
     def |(subscribing_worker)
@@ -34,7 +29,18 @@ module Stepladder
 
     private
 
-    def work
+    def ensure_ready_to_work!
+      @task ||= default_task
+      # at this point we will ensure a task exists
+      # because we know that the worker is being
+      # asked for product
+
+      unless ready_to_work?
+        raise "This worker's task expects to receive a value from a supplier, but has no supplier."
+      end
+    end
+
+    def workflow
       @my_little_machine ||= Fiber.new do
         loop do
           value = supplier && supplier.product

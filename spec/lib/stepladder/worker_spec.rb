@@ -3,7 +3,48 @@ require 'stepladder/worker'
 
 module Stepladder
   describe Worker do
-    it { should respond_to(:product, :supplier, :supplier=) }
+    it { should respond_to(:product, :supplier, :supplier=, :"|") }
+
+    describe "readiness" do
+      context "with no supplier" do
+        context "with no task" do
+          it { should_not be_ready_to_work }
+        end
+        context "with a task which accepts a value" do
+          subject do
+            Worker.new { |value| value.to_s }
+          end
+          it { should_not be_ready_to_work }
+        end
+        context "with a task which doesn't accept a value" do
+          subject do
+            Worker.new { "foo" }
+          end
+          it { should be_ready_to_work }
+        end
+      end
+
+      context "with a supplier" do
+        before do
+          subject.supplier = Worker.new { "foofoo" }
+        end
+        context "with no task" do
+          it { should_not be_ready_to_work }
+        end
+        context "with a task which accepts a value" do
+          subject do
+            Worker.new { |value| value.upcase }
+          end
+          it { should be_ready_to_work }
+        end
+        context "with a task which doesn't accept a value" do
+          subject do
+            Worker.new { "bar" }
+          end
+          it { should be_ready_to_work }
+        end
+      end
+    end
 
     describe "can accept a task" do
       let(:result) { double }
