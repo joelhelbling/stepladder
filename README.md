@@ -109,7 +109,7 @@ end
 ## Origins of Stepladder
 
 Stepladder grew out of experimentation with Ruby fibers, after readings
-[Dave Thomas' demo of Ruby fibers](http://pragdave.blogs.pragprog.com/pragdave/2007/12/pipelines-using.html), wherein he created a
+[Dave Thomas' demo of Ruby fibers](http://pragdave.me/blog/2007/12/30/pipelines-using-fibers-in-ruby-19/), wherein he created a
 pipeline of fiber processes, emulating the style and syntax of the
 \*nix command line.  I noticed that, courtesy of fibers' extremely
 low surface area, fiber-to-fiber collaborators could operate with
