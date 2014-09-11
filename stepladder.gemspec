@@ -17,9 +17,7 @@ Gem::Specification.new do |s|
   s.executables = `git ls-files -- bin/*`.split("\n").map{ |f| File.basename(f) }
   s.require_paths = ["lib"]
 
-  s.add_development_dependency 'cucumber'
-  s.add_development_dependency 'rake'
-  s.add_development_dependency 'rspec'
-  s.add_development_dependency 'rspec-core'
-  s.add_development_dependency 'aruba'
+  s.add_development_dependency 'rake',      '10.3.2'
+  s.add_development_dependency 'rspec',     '3.1.0'
+  s.add_development_dependency 'rspec-its', '1.0.1'
 end
