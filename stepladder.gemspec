@@ -20,4 +20,6 @@ Gem::Specification.new do |s|
   s.add_development_dependency 'rspec',      '3.1.0'
   s.add_development_dependency 'rspec-core', '3.1.2'
   s.add_development_dependency 'rspec-its',  '1.0.1'
+  s.add_development_dependency 'rspec-given', '3.8.0'
+  s.add_development_dependency 'pry'
 end

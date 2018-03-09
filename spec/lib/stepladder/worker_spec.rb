@@ -207,30 +207,29 @@ module Stepladder
         end
       end
 
-      describe "Also, there's a pipeline dsl:" do
-        let(:subscribing_worker) { relay_worker }
-        let!(:pipeline) { source_worker | subscribing_worker }
+    end
 
-        subject { pipeline }
+    describe "#|" do
+      Given(:source_worker) { Worker.new { :foo } }
+      Given(:subscribing_worker) { Worker.new { |v| "#{v}_bar".to_sym } }
 
-        it "lets you daisy-chain workers using \"|\"" do
-          subscribing_worker.supplier.should == source_worker
-        end
-      end
+      When(:pipeline) { source_worker | subscribing_worker }
 
+      Then { subscribing_worker.supplier == source_worker }
+      Then { pipeline.product == :foo_bar }
+      Then { pipeline == subscribing_worker }
     end
 
     describe "#product" do
-      before do
-        supplier.stub(:product).and_return(result)
-        subject.supplier = supplier
-      end
-      let(:result)   { :foo }
-      let(:supplier) { double }
+      Given(:work_product) { :whatever }
+      Given { supplier.stub(:product).and_return(work_product) }
+      Given { subject.supplier = supplier }
+      Given(:supplier) { double }
 
-      it "resumes a fiber" do
-        Fiber.any_instance.should_receive(:resume).and_return(result)
-        subject.product.should == result
+      context "resumes a fiber" do
+        Given { Fiber.any_instance.should_receive(:resume).and_return(work_product) }
+
+        Then { subject.product }
       end
     end
 
