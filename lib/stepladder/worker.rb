@@ -45,7 +45,7 @@ module Stepladder
         loop do
           value = supplier && supplier.product
           if value.nil? || passes_filter?(value)
-            handoff @task.call(value)
+            Fiber.yield @task.call(value)
           end
         end
       end
@@ -86,8 +86,4 @@ module Stepladder
     end
 
   end
-end
-
-def handoff(product)
-  Fiber.yield product
 end

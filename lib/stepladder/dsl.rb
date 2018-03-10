@@ -14,5 +14,8 @@ module Stepladder
       Worker.new filter: block
     end
 
+    def handoff(something)
+      Fiber.yield something
+    end
   end
 end

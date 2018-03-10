@@ -88,7 +88,7 @@ module Stepladder
             supplier.stub(:product).and_return(result)
             subject.supplier = supplier
             def subject.task(value)
-              handoff value
+              Fiber.yield value
             end
           end
           its(:product) { should be_copasetic }
@@ -120,8 +120,8 @@ module Stepladder
       let(:source_worker) do
         Worker.new do
           numbers = (1..3).to_a
-          until numbers.empty?
-            handoff numbers.shift
+          while value = numbers.shift
+            Fiber.yield value
           end
         end
       end
