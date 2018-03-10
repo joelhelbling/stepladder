@@ -2,7 +2,7 @@ module Stepladder
   class WorkerInitializationError < StandardError; end
 
   module Dsl
-    def source(argument=nil, &block)
+    def source_worker(argument=nil, &block)
       ensure_correct_arity_for!(argument, block)
 
       series = series_from(argument)
@@ -20,7 +20,19 @@ module Stepladder
 
     end
 
-    def filter(argument=nil, &block)
+    def relay_worker(&block)
+      if block.arity != 1
+        throw_with \
+          "Regular worker must accept exactly one argument",
+          "(arity == 1)"
+      end
+
+      Worker.new do |value|
+        value && block.call(value)
+      end
+    end
+
+    def filter_worker(argument=nil, &block)
       if (block && argument.respond_to?(:call))
         throw_with 'You cannot supply two callables'
       end
@@ -42,6 +54,7 @@ module Stepladder
       raise WorkerInitializationError.new([msg].flatten.join(' '))
     end
 
+    # only valid for #source_worker
     def ensure_correct_arity_for!(argument, block)
       return unless block
       if argument

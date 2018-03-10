@@ -6,10 +6,10 @@ module Stepladder
   describe Dsl do
     include Stepladder::Dsl
 
-    describe '#source' do
+    describe '#source_worker' do
       context 'normal usage' do
         context 'with an array' do
-          Given(:worker) { source [:fee, :fi] }
+          Given(:worker) { source_worker [:fee, :fi] }
 
           Then { worker.product == :fee }
           And  { worker.product == :fi }
@@ -17,7 +17,7 @@ module Stepladder
         end
 
         context 'with a range' do
-          Given(:worker) { source (0..2) }
+          Given(:worker) { source_worker (0..2) }
 
           Then { worker.product == 0 }
           And  { worker.product == 1 }
@@ -26,7 +26,7 @@ module Stepladder
         end
 
         context 'with a string' do
-          Given(:worker) { source 'abc' }
+          Given(:worker) { source_worker 'abc' }
 
           Then { worker.product == 'a' }
           And  { worker.product == 'b' }
@@ -35,7 +35,7 @@ module Stepladder
         end
 
         context 'with a hash' do
-          Given(:worker) { source({foo: 2, bar: 'yarr'}) }
+          Given(:worker) { source_worker({foo: 2, bar: 'yarr'}) }
 
           Then { worker.product == [:foo, 2] }
           And  { worker.product == [:bar, 'yarr'] }
@@ -43,7 +43,7 @@ module Stepladder
         end
 
         context 'with a anything else' do
-          Given(:worker) { source :foo }
+          Given(:worker) { source_worker :foo }
 
           Then { worker.product == :foo }
           And  { worker.product.nil? }
@@ -52,7 +52,7 @@ module Stepladder
         context 'with a callable' do
           Given(:worker) do
             notes = %i[doh ray me fa so la ti]
-            source do
+            source_worker do
               notes.shift if notes.size > 4
             end
           end
@@ -66,7 +66,7 @@ module Stepladder
         context 'with a callable and an argument' do
           Given(:notes) { %i[so la ti] }
           Given(:worker) do
-            source notes do |note|
+            source_worker notes do |note|
               note.to_s.upcase
             end
           end
@@ -81,7 +81,7 @@ module Stepladder
       context 'illegal usage' do
         context 'with no argument and arity > 0' do
           Given(:invocation) do
-            -> { source { |v| v * 2 } }
+            -> { source_worker { |v| v * 2 } }
           end
           Then { expect(invocation).to raise_error(/arity == 0/) }
         end
@@ -90,61 +90,80 @@ module Stepladder
       context 'with argument' do
         context 'and arity == 0' do
           Given(:invocation) do
-            -> { source([]) { :boo } }
+            -> { source_worker([]) { :boo } }
           end
           Then { expect(invocation).to raise_error(/arity == 1/) }
         end
         context 'and arity > 1' do
           Given(:invocation) do
-            -> { source([]) { |p, q| :boo } }
+            -> { source_worker([]) { |p, q| :boo } }
           end
           Then { expect(invocation).to raise_error(/arity == 1/) }
         end
       end
     end
 
-    describe '#filter' do
+    describe '#relay_worker' do
       context 'normal usage' do
-        Given(:source) do
-          Worker.new do
-            numbers = (1..3).to_a
-            until numbers.empty?
-              handoff numbers.shift
-            end
+        Given(:source) { source_worker %w[better stronger faster] }
+        Given(:worker) do
+          relay_worker { |v| v.gsub(/t/, '+') }
+        end
+
+        When { source | worker }
+
+        Then { worker.product == 'be++er' }
+        And  { worker.product == 's+ronger' }
+        And  { worker.product == 'fas+er' }
+        And  { worker.product.nil? }
+      end
+
+      context 'illegal usage' do
+        context 'arity == 0' do
+          Given(:invocation) do
+            -> { relay_worker() { :foo } }
           end
+
+          Then { expect(invocation).to raise_error(/arity == 1/) }
+        end
+      end
+    end
+
+    describe '#filter_worker' do
+      context 'normal usage' do
+        Given(:source) { source_worker (1..3) }
+
+        When { source | filter }
+
+        Given(:filter) do
+           filter_worker { |v| v % 2 == 0 }
         end
 
-        When { source | filter_worker }
-
-        Given(:filter_worker) do
-           filter { |v| v % 2 == 0 }
-        end
-
-        Then { filter_worker.product == 2 }
-        And { expect(filter_worker.product).to be_nil }
+        Then { filter.product == 2 }
+        And { expect(filter.product).to be_nil }
       end
 
       context 'illegal usage' do
         context 'requires a callable' do
           context 'with no arguments or block' do
-            Given(:invocation) { -> { filter } }
+            Given(:invocation) { -> { filter_worker } }
             Then { expect(invocation).to raise_error(/supply a callable/) }
           end
 
           context 'with no callable' do
-            Given(:invocation) { -> { filter :foo } }
+            Given(:invocation) { -> { filter_worker :foo } }
             Then { expect(invocation).to raise_error(/supply a callable/) }
           end
 
           context 'with callable arg' do
             Given(:arg) { Proc.new { true } }
-            Given(:invocation) { -> { filter arg } }
+            Given(:invocation) { -> { filter_worker arg } }
             Then { expect(invocation).to_not raise_error }
           end
 
           context 'with both callable arg and block' do
             Given(:arg) { Proc.new { true } }
-            Given(:invocation) { -> { filter(arg) do false; end } }
+            Given(:invocation) { -> { filter_worker(arg) do false; end } }
             Then { expect(invocation).to raise_error(/two callables/) }
           end
         end
