@@ -129,6 +129,35 @@ module Stepladder
       end
     end
 
+    describe '#side_worker' do
+      context 'normal usage' do
+        Given(:source) { source_worker (0..2) }
+        Given(:side_effect) { [] }
+        Given(:worker) do
+          side_effect
+          side_worker { |v| side_effect << v * 2 }
+        end
+
+        When { source | worker }
+
+        Then { worker.product == 0 }
+        And  { worker.product == 1 }
+        And  { worker.product == 2 }
+        And  { worker.product.nil? }
+        And  { side_effect == [0, 2, 4] }
+      end
+
+      context 'illegal usage' do
+        context 'arity == 0' do
+          Given(:invocation) do
+            -> { side_worker() { :foo } }
+          end
+
+          Then { expect(invocation).to raise_error(/arity == 1/) }
+        end
+      end
+    end
+
     describe '#filter_worker' do
       context 'normal usage' do
         Given(:source) { source_worker (1..3) }

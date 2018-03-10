@@ -21,14 +21,20 @@ module Stepladder
     end
 
     def relay_worker(&block)
-      if block.arity != 1
-        throw_with \
-          "Regular worker must accept exactly one argument",
-          "(arity == 1)"
-      end
+      ensure_regular_arity(block)
 
       Worker.new do |value|
         value && block.call(value)
+      end
+    end
+
+    def side_worker(&block)
+      ensure_regular_arity(block)
+
+      Worker.new do |value|
+        value.tap do |v|
+          v && block.call(v)
+        end
       end
     end
 
@@ -68,6 +74,14 @@ module Stepladder
           throw_with \
             'Source worker cannot accept any arguments (arity == 0)'
         end
+      end
+    end
+
+    def ensure_regular_arity(block)
+      if block.arity != 1
+        throw_with \
+          "Regular worker must accept exactly one argument",
+          "(arity == 1)"
       end
     end
 
