@@ -115,7 +115,7 @@ module Stepladder
 
     end
 
-    describe "= WORKER TYPES =" do
+    describe "= EXAMPLE WORKER TYPES =" do
 
       let(:source_worker) do
         Worker.new do

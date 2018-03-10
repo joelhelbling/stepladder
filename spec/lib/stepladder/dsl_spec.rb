@@ -198,5 +198,61 @@ module Stepladder
         end
       end
     end
+
+    describe '#batch_worker' do
+      Given(:source) { source_worker (0..7) }
+
+      context 'normal usage' do
+        When { source | worker }
+
+        context 'with specified "gathering" batch size' do
+          Given(:worker) do
+            batch_worker gathering: 3
+          end
+
+          Then { worker.product == [ 0, 1, 2 ] }
+          And  { worker.product == [ 3, 4, 5 ] }
+          And  { worker.product == [ 6, 7 ] }
+          And  { worker.product.nil? }
+        end
+
+        context 'defaults to batch size of 1' do
+          Given(:source) { source_worker [8,9] }
+          Given(:worker) { batch_worker }
+
+          Then { worker.product == [ 8 ] }
+          And  { worker.product == [ 9 ] }
+          And  { worker.product.nil? }
+        end
+
+        context 'collects until condition' do
+          Given(:source) { source_worker (1..5) }
+          Given(:worker) do
+            batch_worker { |n| n % 2 == 0 }
+          end
+
+          Then { worker.product == [ 1, 2 ] }
+          And  { worker.product == [ 3, 4 ] }
+          And  { worker.product == [ 5 ] }
+          And  { worker.product.nil? }
+        end
+      end
+
+      context 'illegal usage' do
+        context 'requires a callable' do
+          context 'with arity == 0' do
+            Given(:invocation) { -> { batch_worker() { :foo } } }
+            Then { expect(invocation).to raise_error(/arity == 1/) }
+          end
+
+          context 'with arity > 1' do
+            Given(:invocation) { -> { batch_worker() { |a,b| :foo } } }
+            Then { expect(invocation).to raise_error(/arity == 1/) }
+          end
+
+        end
+      end
+    end
+
   end
 end

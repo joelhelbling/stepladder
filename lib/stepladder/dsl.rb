@@ -44,10 +44,36 @@ module Stepladder
       end
       callable = argument.respond_to?(:call) ? argument : block
 
-      unless callable
-        throw_with 'You must supply a callable'
-      end
+      ensure_callable(callable)
       Worker.new filter: block
+    end
+
+    def batch_worker(options = {gathering: 1}, &block)
+      ensure_regular_arity(block) if block
+
+      Worker.new.tap do |worker|
+        worker.instance_variable_set(:@batch_size, options[:gathering])
+        worker.instance_variable_set(:@batch_complete_block, block)
+
+        def worker.task(value)
+          if value
+            @collection = [value]
+            until batch_complete?(@collection.last)
+              @collection << supplier.product
+            end
+            @collection.compact
+          end
+        end
+
+        def worker.batch_complete?(value)
+          return true if value.nil?
+          if @batch_complete_block
+            !! @batch_complete_block.call(value)
+          else
+            @collection.size >= @batch_size
+          end
+        end
+      end
     end
 
     def handoff(something)
@@ -60,28 +86,29 @@ module Stepladder
       raise WorkerInitializationError.new([msg].flatten.join(' '))
     end
 
-    # only valid for #source_worker
-    def ensure_correct_arity_for!(argument, block)
-      return unless block
-      if argument
-        if block.arity != 1
-          throw_with 'Source worker with enumerable argument',
-                     'and block must accept exactly one argument',
-                     '(arity == 1)'
-        end
-      else
-        if block.arity > 0
-          throw_with \
-            'Source worker cannot accept any arguments (arity == 0)'
-        end
+    def ensure_callable(callable)
+      unless callable && callable.respond_to?(:call)
+        throw_with 'You must supply a callable'
       end
     end
 
     def ensure_regular_arity(block)
       if block.arity != 1
         throw_with \
-          "Regular worker must accept exactly one argument",
-          "(arity == 1)"
+          "Worker must accept exactly one argument (arity == 1)"
+      end
+    end
+
+    # only valid for #source_worker
+    def ensure_correct_arity_for!(argument, block)
+      return unless block
+      if argument
+        ensure_regular_arity(block)
+      else
+        if block.arity > 0
+          throw_with \
+            'Source worker cannot accept any arguments (arity == 0)'
+        end
       end
     end
 
