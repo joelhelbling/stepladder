@@ -7,103 +7,207 @@ _"How many Ruby fibers does it take to screw in a lightbulb?"_
 
 ## Quick Start
 
-### Workers have tasks...
+### New!  Stepladders now has a DSL!
 
-Initialize with a block of code:
+As of version ?? there is now a DSL which provides convenient shorthand
+for several common types of workers.  Let's look at them.
 
-```ruby
-source_worker = Stepladder::Worker.new { "hulk" }
-
-source_worker.product #=> "hulk"
-```
-If you supply a worker with another worker as its supplier, then you
-can give it a task which accepts a value:
+But first, be sure to include the DSL mixin:
 
 ```ruby
-relay_worker = Stepladder::Worker.new { |name| name.upcase }
-relay_worker.supplier = source_worker
-
-relay_worker.product #=> "HULK"
+include Stepladder::Dsl
 ```
 
-You can also initialize a worker by passing in a callable object
-as its task:
+#### `source_worker`
+
+At the headwater of every Stepladder pipeline, there is a source worker
+which is able to generate its own work items.
+
+Here is possibly the simplest of source workers, which provides the same
+string each time it is invoked:
 
 ```ruby
-capitalizer = Proc.new { |name| name.capitalize }
-relay_worker = Stepladder::Worker.new(task: capitalizer, supplier: source_worker)
+worker = source_worker { "Number 9" }
 
-relay_worker.product #=> 'Hulk'
+worker.product #=> "Number 9"
+worker.product #=> "Number 9"
+worker.product #=> "Number 9"
+# ...ad nauseum...
 ```
 
-A worker also has an accessor for its @task:
+Sometimes you want a worker which generates until it doesn't:
 
 ```ruby
-doofusizer = Proc.new { |name| name.gsub(/u/, 'oo') }
-relay_worker.task = doofusizer
-
-relay_worker.product #=> 'hoolk'
-```
-
-And finally, you can provide a task by directly overriding the
-worker's #task instance method:
-
-```ruby
-def relay_worker.task(name)
-  name.to_sym
+counter = 0
+worker = source_worker do
+  if counter < 3
+    counter += 1
+    counter + 1000
+  end
 end
 
-relay_worker.product #=> :hulk
+worker.product #=> 1001
+worker.product #=> 1002
+worker.product #=> 1003
+worker.product #=> nil
+worker.product #=> nil (and will be nil henceforth)
 ```
 
-Even workers without a task have a task; all workers actually come
-with a default task which simply passes on the received value unchanged:
+If all you want is a source worker which generates a series of numbers
+the DSL provides an easier way to do it:
 
 ```ruby
-useless_worker = Stepladder::Worker.new(supplier: source_worker)
+w1 = source_worker [0,1,2]
+w2 = source_worker (0..2)
 
-useless_worker.product #=> 'hulk'
+w1.product == w2.product #=> 0
+w1.product == w2.product #=> 1
+w1.product == w2.product #=> 2
+w1.product == w2.product #=> nil (and henceforth, etc.)
 ```
 
-This turns out to be helpful in implementing filter workers, which are up next.
+#### `relay_worker`
 
-### Workers can have filters...
-
-Given a source worker which provides integers 1-3:
+This is perhaps the most "normal" kind of worker in Stepladder.  It
+accepts a value and returns some transformation of that value:
 
 ```ruby
-source = Stepladder::Worker.new do
-  (1..3).each { |number| handoff number }
+squarer = relay_worker do |number|
+  number ** 2
 end
 ```
 
-...we can define a subscribing worker with a filter:
+Of course a relay worker needs a source from which to get values upon
+which to operate:
 
 ```ruby
-odd_number_filter = Proc.new { |number| number % 2 > 0 }
-filter_worker = Stepladder::Worker.new filter: odd_number_filter
+source = source_worker (0..3)
 
-filter_worker.product #=> 1
-filter_worker.product #=> 3
-filter_worker.product #=> nil
+squarer.supplier = source
 ```
 
-### The pipeline DSL
-
-You can stitch your workers together using the vertical pipe ("|") like so:
+Or, if you prefer, the DSL provides a vertical pipe for linking the
+workers together into a pipeline:
 
 ```ruby
-pipeline = source_worker | filter_worker | relay_worker | another worker
+pipeline = source | squarer
+
+pipeline.product #=> 0
+pipeline.product #=> 1
+pipeline.product #=> 4
+pipeline.product #=> 9
+pipeline.product #=> nil
 ```
 
-...and then just call on that pipeline (it's actually the last worker in the
-chain):
+#### `side_worker`
 
-```ruby
-while next_value = pipeline.product do
-  do_something_with next_value
-  # etc.
+As we travel down the pipeline, from time to time, we will want to
+stop and smell the roses, or write to a log file, or drop a beat, or
+create some other kind of side-effect.  That's the purpose of the
+`side_worker`.  A side worker will pass through the same value that
+received, but as it does so, it can perform some kind side-effect
+work.
+
+```
+evens = []
+even_stasher = side_effect do |value|
+  if value % 2 == 0
+    evens << value
+  end
 end
+
+pipeline = source | squarer | even_stasher
+
+pipeline.product #=> 0
+pipeline.product #=> 1
+pipeline.product #=> 4
+pipeline.product #=> 9
+pipeline.product #=> nil
+
+evens #=> [0, 4]
+```
+
+_But wait,_ you want to say, _can't we still create side effects with
+regular ole relay workers?_  Why, yes.  Yes you can.  Ruby being what
+it is, there really isn't a way to prevent the implementation of any
+worker from creating side effects.
+
+_And still wait,_ you'll also be wanting to say, _isn't it possible
+that a side worker could mutate the value as it's passed through?_  And
+again, yes.  It would be very difficult (in the Ruby language, where
+so many things are passed by reference) to perfectly prevent a side
+worker from mutating the value.  But don't.
+
+The side effect worker's purpose is to provide _intentionality_ and
+clarity.  When you're creating a side effect, let it be very clear.
+And don't do regular, pure functional style work in the same worker.
+
+This will make side effects easier to troubleshoot; if you pull them
+out of the pipeline, the pipeline's output shouldn't change.  By the
+same token, if there is a problem with a side effect, troubleshooting
+it will be much simpler if the side effects are already isolated and
+named.
+
+#### `filter_worker`
+
+The filter worker simply passes through the values which are given
+to it, but _only_ those values which result in truthiness when your
+provided callable is run against it.  Values which result in
+falsiness are simply discarded.
+
+```ruby
+source = source_worker (0..5)
+
+filter = filter_worker do |value|
+  value % 2 == 0
+end
+
+pipeline = source | filter
+
+pipeline.product #=> 0
+pipeline.product #=> 2
+pipeline.product #=> 4
+pipeline.product #=> nil
+```
+
+#### `batch_worker`
+
+The batch worker gathers outputs into batches and the returns each
+batch as its output.
+
+```ruby
+source = source_worker (0..7)
+
+batch = batch_worker gathering: 3
+
+pipeline = source | batch
+
+pipeline.product #=> [0, 1, 2]
+pipeline.product #=> [3, 4, 5]
+pipeline.product #=> [6, 7]
+pipeline.product #=> nil
+```
+
+Notice how the final batch doesn't have full compliment of three.
+
+Fixed-numbered batch workers are useful for things like pagination,
+perhaps, but sometimes we don't want a batch to include a specific
+number of items, but to batch together all items until a certain
+condition is met.  So batch worker can also accept a callable:
+
+```ruby
+source = source_worker [
+  "some", "rain", "must\n", "fall", "but", "ok" ]
+
+line_reader = batch_worker do |value|
+  value.end_with? "\n"
+end
+
+pipeline = source | line_reader
+
+pipeline.product #=> ["some", "rain", "must\n"]
+pipeline.product #=> ["fall", "but", "ok"]
+pipeline.product #=> nil
 ```
 
 ## Origins of Stepladder
@@ -179,50 +283,54 @@ just _common objects_ coupling-- this little remaining coupling is
 mitigated by the possibility of having coupled code _live together_.
 I call this feature the _folded collaborators_ effect.
 
-Consider the following -code- vaporware:
+Consider the following ~~code~~ vaporware:
 
 ```ruby
-ME = "joelhelbling"
+SUBJECT = 'kitteh'
 
-module Stepladder
-  tweet_getter = Worker.new do
-    twitter_api.fetch_my_tweets
-  end
+include Stepladder::Dsl
 
-  about_me_filter      = Proc.new { |tweet| tweet.referenced.include? ME }
-  just_about_me_getter = Worker.new filter: about_me_filter
+tweet_getter = source_worker do
+  twitter_api.fetch_my_tweets
+end
 
-  tweet_formatter = Worker.new do |tweet|
-    apply_format_to tweet
-  end
+about_me = filter_worker do |tweet|
+  tweet.referenced.include? SUBJECT
+end
 
-  formatted_tweets = tweet_getter | just_about_me_getter | tweet_formatter
+tweet_formatter = relay_worker do |tweet|
+  apply_format_to tweet
+end
+
+kitteh_tweets = tweet_getter | about_me | tweet_formatter
+
+while tweet = kitteh_tweets.product
+  display(tweet)
 end
 ```
 
 None of these tasks have hard coupling with each other.  If we were to
-insert another worker between the filter and the formatter, neither of those
-workers would need changes in their code, assuming the inserted worker plays
-nicely with the objects they're all passing along.
+insert another worker between the filter and the formatter, neither of
+those workers would need changes in their code, assuming the inserted
+worker plays nicely with the objects they're all passing along.
 
 Which brings me to the point: these workers to have a dependency upon the
 objects they're handing off and receiving.  But we have the capability to
 coordinate those workers in a centralized location (such as in this code
 example).
 
-## Ok, but why is it called "Stepladder"?
+## Stepladder::Worker
 
-This framework's name was inspired by a conversation with Tim Wingfield
-in which we joked about the profusion of new frameworks in the Ruby
-community.  We quickly began riffing on a fictional framework called
-"Stepladder" which all the cool kids, we asserted, were (or would soon
-be) using.
-
-I have waited a long time to make that farce a reality, but hey, I take
-joke frameworks very seriously. ;)
-([Really?](http://github.com/joelhelbling/really))
+The Stepladder::Worker documentation has been moved
+[here](docs/stepladder/worker.md).
 
 ## Roadmap
 
-- add a nicer top-layer to the DSL --no reason we should have to do
-  all that `Worker.new` stuff
+- `splitter_worker` -- would accept a value and return an array.  The
+  elements of that returned array would then be output as separate values
+  to the next worker in the pipeline.
+- `batch_worker trailing: n` -- accepts a value, and returns the last n
+  values.  This would mean that no values would be returned until n
+  values had been accumulated.  This could be useful for things like
+  rolling averages.
+
