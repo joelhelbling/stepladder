@@ -106,16 +106,16 @@ module Stepladder
     describe '#relay_worker' do
       context 'normal usage' do
         Given(:source) { source_worker %w[better stronger faster] }
-        Given(:worker) do
+        Given(:relay) do
           relay_worker { |v| v.gsub(/t/, '+') }
         end
 
-        When { source | worker }
+        When { source | relay }
 
-        Then { worker.product == 'be++er' }
-        And  { worker.product == 's+ronger' }
-        And  { worker.product == 'fas+er' }
-        And  { worker.product.nil? }
+        Then { relay.product == 'be++er' }
+        And  { relay.product == 's+ronger' }
+        And  { relay.product == 'fas+er' }
+        And  { relay.product.nil? }
       end
 
       context 'illegal usage' do
