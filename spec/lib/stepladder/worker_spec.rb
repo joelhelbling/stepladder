@@ -1,5 +1,4 @@
 require 'spec_helper'
-require 'stepladder/worker'
 
 module Stepladder
   describe Worker do

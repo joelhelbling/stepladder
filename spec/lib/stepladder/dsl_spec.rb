@@ -1,6 +1,4 @@
 require 'spec_helper'
-require 'stepladder/worker'
-require 'stepladder/dsl'
 
 module Stepladder
   describe Dsl do
