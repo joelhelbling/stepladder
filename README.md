@@ -7,7 +7,27 @@ _"How many Ruby fibers does it take to screw in a lightbulb?"_
 
 ## Quick Start
 
-### New!  Stepladders now has a DSL!
+Add this line to your application's Gemfile:
+
+```ruby
+gem 'stepladder'
+```
+
+And then execute:
+
+    $ bundle
+
+Or install it yourself:
+
+    $ gem install steplader
+
+And then use it:
+
+```ruby
+require 'stepladder'
+```
+
+## New!  Stepladders now has a DSL!
 
 As of version ?? there is now a DSL which provides convenient shorthand
 for several common types of workers.  Let's look at them.
@@ -18,7 +38,7 @@ But first, be sure to include the DSL mixin:
 include Stepladder::Dsl
 ```
 
-#### `source_worker`
+### Source Worker
 
 At the headwater of every Stepladder pipeline, there is a source worker
 which is able to generate its own work items.
@@ -66,7 +86,7 @@ w1.product == w2.product #=> 2
 w1.product == w2.product #=> nil (and henceforth, etc.)
 ```
 
-#### `relay_worker`
+### Relay Worker
 
 This is perhaps the most "normal" kind of worker in Stepladder.  It
 accepts a value and returns some transformation of that value:
@@ -99,16 +119,18 @@ pipeline.product #=> 9
 pipeline.product #=> nil
 ```
 
-#### `side_worker`
+### Side Worker
 
 As we travel down the pipeline, from time to time, we will want to
 stop and smell the roses, or write to a log file, or drop a beat, or
 create some other kind of side-effect.  That's the purpose of the
 `side_worker`.  A side worker will pass through the same value that
-received, but as it does so, it can perform some kind side-effect
+it received, but as it does so, it can perform some kind side-effect
 work.
 
 ```
+source = source_worker (0..3)
+
 evens = []
 even_stasher = side_effect do |value|
   if value % 2 == 0
@@ -116,7 +138,8 @@ even_stasher = side_effect do |value|
   end
 end
 
-pipeline = source | squarer | even_stasher
+# re-using "squarer" from above example...
+pipeline = source | even_stasher | squarer
 
 pipeline.product #=> 0
 pipeline.product #=> 1
@@ -124,8 +147,13 @@ pipeline.product #=> 4
 pipeline.product #=> 9
 pipeline.product #=> nil
 
-evens #=> [0, 4]
+evens #=> [0, 2]
 ```
+
+Notice that the output is the same as the previous example, even though
+we put this `even_stasher` `side_worker` in the middle of the pipeline.
+
+However, we can also see that the `evens` array now contains the even numbers from `source` (the side effect).
 
 _But wait,_ you want to say, _can't we still create side effects with
 regular ole relay workers?_  Why, yes.  Yes you can.  Ruby being what
@@ -134,9 +162,9 @@ worker from creating side effects.
 
 _And still wait,_ you'll also be wanting to say, _isn't it possible
 that a side worker could mutate the value as it's passed through?_  And
-again, yes.  It would be very difficult (in the Ruby language, where
+again, yes.  It would be very difficult\* in the Ruby language (where
 so many things are passed by reference) to perfectly prevent a side
-worker from mutating the value.  But don't.
+worker from mutating the value.  But please don't.
 
 The side effect worker's purpose is to provide _intentionality_ and
 clarity.  When you're creating a side effect, let it be very clear.
@@ -148,7 +176,15 @@ same token, if there is a problem with a side effect, troubleshooting
 it will be much simpler if the side effects are already isolated and
 named.
 
-#### `filter_worker`
+\* _Under consideration: a variant of the side-effect which attempts
+to prevent side-effects by doing a `Marshal.dump/load`.  But the
+potential overhead in all that marshalling makes me hesitant to make
+this the default behavior.  Making it available as an option, however,
+opens the possibility to troubleshoot side effects: if the marshalling
+eliminates an unwanted mutation, then chances are that you have a
+side effect that is doing mutation._
+
+### Filter Worker
 
 The filter worker simply passes through the values which are given
 to it, but _only_ those values which result in truthiness when your
@@ -170,7 +206,7 @@ pipeline.product #=> 4
 pipeline.product #=> nil
 ```
 
-#### `batch_worker`
+### Batch Worker
 
 The batch worker gathers outputs into batches and the returns each
 batch as its output.
