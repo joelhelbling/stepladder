@@ -4,3 +4,4 @@
 .ruby-gemset
 Gemfile.lock
 pkg
+coverage
