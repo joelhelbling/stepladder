@@ -369,4 +369,9 @@ The Stepladder::Worker documentation has been moved
   values.  This would mean that no values would be returned until n
   values had been accumulated.  This could be useful for things like
   rolling averages.
-
+- `side_worker(:hardened) { |v| do_stuff_with(v) }` -- the `:hardened`
+  flag would attempt to ensure no side effects may occur by using
+  `Marshal` to dump/load the value before handing it to the workers
+  callable.  Also might make a runtime-wide toggle which hardens all
+  side_workers, which could be useful in flushing out side workers
+  which are doing inadvertent mutation.
