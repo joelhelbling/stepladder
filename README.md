@@ -1,3 +1,4 @@
+[![Gem Version](https://badge.fury.io/rb/stepladder.svg)](https://badge.fury.io/rb/stepladder)
 [![Build Status](https://travis-ci.org/joelhelbling/stepladder.png)](https://travis-ci.org/joelhelbling/stepladder)
 [![Code Climate](https://codeclimate.com/badge.png)](https://codeclimate.com/github/joelhelbling/stepladder)
 
