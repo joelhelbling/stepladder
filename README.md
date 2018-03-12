@@ -1,6 +1,7 @@
 [![Gem Version](https://badge.fury.io/rb/stepladder.svg)](https://badge.fury.io/rb/stepladder)
 [![Build Status](https://travis-ci.org/joelhelbling/stepladder.png)](https://travis-ci.org/joelhelbling/stepladder)
-[![Code Climate](https://codeclimate.com/badge.png)](https://codeclimate.com/github/joelhelbling/stepladder)
+[![Maintainability](https://api.codeclimate.com/v1/badges/950ded888350c1124348/maintainability)](https://codeclimate.com/github/joelhelbling/stepladder/maintainability)
+[![Test Coverage](https://api.codeclimate.com/v1/badges/950ded888350c1124348/test_coverage)](https://codeclimate.com/github/joelhelbling/stepladder/test_coverage)
 
 # The Stepladder Framework
 
