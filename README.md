@@ -31,7 +31,7 @@ require 'stepladder'
 
 ## New!  Stepladders now has a DSL!
 
-As of version ?? there is now a DSL which provides convenient shorthand
+As of version 0.2.0 there is now a DSL which provides convenient shorthand
 for several common types of workers.  Let's look at them.
 
 But first, be sure to include the DSL mixin:
