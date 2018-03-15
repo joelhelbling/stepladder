@@ -9,42 +9,42 @@ module Stepladder
         context 'with an array' do
           Given(:worker) { source_worker [:fee, :fi] }
 
-          Then { worker.product == :fee }
-          And  { worker.product == :fi }
-          And  { worker.product.nil? }
+          Then { worker.pull == :fee }
+          And  { worker.pull == :fi }
+          And  { worker.pull.nil? }
         end
 
         context 'with a range' do
           Given(:worker) { source_worker (0..2) }
 
-          Then { worker.product == 0 }
-          And  { worker.product == 1 }
-          And  { worker.product == 2 }
-          And  { worker.product.nil? }
+          Then { worker.pull == 0 }
+          And  { worker.pull == 1 }
+          And  { worker.pull == 2 }
+          And  { worker.pull.nil? }
         end
 
         context 'with a string' do
           Given(:worker) { source_worker 'abc' }
 
-          Then { worker.product == 'a' }
-          And  { worker.product == 'b' }
-          And  { worker.product == 'c' }
-          And  { worker.product.nil? }
+          Then { worker.pull == 'a' }
+          And  { worker.pull == 'b' }
+          And  { worker.pull == 'c' }
+          And  { worker.pull.nil? }
         end
 
         context 'with a hash' do
           Given(:worker) { source_worker({foo: 2, bar: 'yarr'}) }
 
-          Then { worker.product == [:foo, 2] }
-          And  { worker.product == [:bar, 'yarr'] }
-          And  { worker.product.nil? }
+          Then { worker.pull == [:foo, 2] }
+          And  { worker.pull == [:bar, 'yarr'] }
+          And  { worker.pull.nil? }
         end
 
         context 'with a anything else' do
           Given(:worker) { source_worker :foo }
 
-          Then { worker.product == :foo }
-          And  { worker.product.nil? }
+          Then { worker.pull == :foo }
+          And  { worker.pull.nil? }
         end
 
         context 'with a callable' do
@@ -55,10 +55,10 @@ module Stepladder
             end
           end
 
-          Then { worker.product == :doh }
-          And  { worker.product == :ray }
-          And  { worker.product == :me }
-          And  { worker.product.nil? }
+          Then { worker.pull == :doh }
+          And  { worker.pull == :ray }
+          And  { worker.pull == :me }
+          And  { worker.pull.nil? }
         end
 
         context 'with a callable and an argument' do
@@ -69,10 +69,10 @@ module Stepladder
             end
           end
 
-          Then { worker.product == 'SO' }
-          And  { worker.product == 'LA' }
-          And  { worker.product == 'TI' }
-          And  { worker.product.nil? }
+          Then { worker.pull == 'SO' }
+          And  { worker.pull == 'LA' }
+          And  { worker.pull == 'TI' }
+          And  { worker.pull.nil? }
         end
       end
 
@@ -110,10 +110,10 @@ module Stepladder
 
         When { source | relay }
 
-        Then { relay.product == 'be++er' }
-        And  { relay.product == 's+ronger' }
-        And  { relay.product == 'fas+er' }
-        And  { relay.product.nil? }
+        Then { relay.pull == 'be++er' }
+        And  { relay.pull == 's+ronger' }
+        And  { relay.pull == 'fas+er' }
+        And  { relay.pull.nil? }
       end
 
       context 'illegal usage' do
@@ -138,10 +138,10 @@ module Stepladder
 
         When { source | worker }
 
-        Then { worker.product == 0 }
-        And  { worker.product == 1 }
-        And  { worker.product == 2 }
-        And  { worker.product.nil? }
+        Then { worker.pull == 0 }
+        And  { worker.pull == 1 }
+        And  { worker.pull == 2 }
+        And  { worker.pull.nil? }
         And  { side_effect == [0, 2, 4] }
       end
 
@@ -166,8 +166,8 @@ module Stepladder
            filter_worker { |v| v % 2 == 0 }
         end
 
-        Then { filter.product == 2 }
-        And { expect(filter.product).to be_nil }
+        Then { filter.pull == 2 }
+        And { expect(filter.pull).to be_nil }
       end
 
       context 'illegal usage' do
@@ -208,19 +208,19 @@ module Stepladder
             batch_worker gathering: 3
           end
 
-          Then { worker.product == [ 0, 1, 2 ] }
-          And  { worker.product == [ 3, 4, 5 ] }
-          And  { worker.product == [ 6, 7 ] }
-          And  { worker.product.nil? }
+          Then { worker.pull == [ 0, 1, 2 ] }
+          And  { worker.pull == [ 3, 4, 5 ] }
+          And  { worker.pull == [ 6, 7 ] }
+          And  { worker.pull.nil? }
         end
 
         context 'defaults to batch size of 1' do
           Given(:source) { source_worker [8,9] }
           Given(:worker) { batch_worker }
 
-          Then { worker.product == [ 8 ] }
-          And  { worker.product == [ 9 ] }
-          And  { worker.product.nil? }
+          Then { worker.pull == [ 8 ] }
+          And  { worker.pull == [ 9 ] }
+          And  { worker.pull.nil? }
         end
 
         context 'collects until condition' do
@@ -229,10 +229,10 @@ module Stepladder
             batch_worker { |n| n % 2 == 0 }
           end
 
-          Then { worker.product == [ 1, 2 ] }
-          And  { worker.product == [ 3, 4 ] }
-          And  { worker.product == [ 5 ] }
-          And  { worker.product.nil? }
+          Then { worker.pull == [ 1, 2 ] }
+          And  { worker.pull == [ 3, 4 ] }
+          And  { worker.pull == [ 5 ] }
+          And  { worker.pull.nil? }
         end
       end
 

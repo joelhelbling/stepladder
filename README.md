@@ -51,9 +51,9 @@ string each time it is invoked:
 ```ruby
 worker = source_worker { "Number 9" }
 
-worker.product #=> "Number 9"
-worker.product #=> "Number 9"
-worker.product #=> "Number 9"
+worker.pull #=> "Number 9"
+worker.pull #=> "Number 9"
+worker.pull #=> "Number 9"
 # ...ad nauseum...
 ```
 
@@ -68,11 +68,11 @@ worker = source_worker do
   end
 end
 
-worker.product #=> 1001
-worker.product #=> 1002
-worker.product #=> 1003
-worker.product #=> nil
-worker.product #=> nil (and will be nil henceforth)
+worker.pull #=> 1001
+worker.pull #=> 1002
+worker.pull #=> 1003
+worker.pull #=> nil
+worker.pull #=> nil (and will be nil henceforth)
 ```
 
 If all you want is a source worker which generates a series of numbers
@@ -82,10 +82,10 @@ the DSL provides an easier way to do it:
 w1 = source_worker [0,1,2]
 w2 = source_worker (0..2)
 
-w1.product == w2.product #=> 0
-w1.product == w2.product #=> 1
-w1.product == w2.product #=> 2
-w1.product == w2.product #=> nil (and henceforth, etc.)
+w1.pull == w2.pull #=> 0
+w1.pull == w2.pull #=> 1
+w1.pull == w2.pull #=> 2
+w1.pull == w2.pull #=> nil (and henceforth, etc.)
 ```
 
 ### Relay Worker
@@ -114,11 +114,11 @@ workers together into a pipeline:
 ```ruby
 pipeline = source | squarer
 
-pipeline.product #=> 0
-pipeline.product #=> 1
-pipeline.product #=> 4
-pipeline.product #=> 9
-pipeline.product #=> nil
+pipeline.pull #=> 0
+pipeline.pull #=> 1
+pipeline.pull #=> 4
+pipeline.pull #=> 9
+pipeline.pull #=> nil
 ```
 
 ### Side Worker
@@ -143,11 +143,11 @@ end
 # re-using "squarer" from above example...
 pipeline = source | even_stasher | squarer
 
-pipeline.product #=> 0
-pipeline.product #=> 1
-pipeline.product #=> 4
-pipeline.product #=> 9
-pipeline.product #=> nil
+pipeline.pull #=> 0
+pipeline.pull #=> 1
+pipeline.pull #=> 4
+pipeline.pull #=> 9
+pipeline.pull #=> nil
 
 evens #=> [0, 2]
 ```
@@ -202,10 +202,10 @@ end
 
 pipeline = source | filter
 
-pipeline.product #=> 0
-pipeline.product #=> 2
-pipeline.product #=> 4
-pipeline.product #=> nil
+pipeline.pull #=> 0
+pipeline.pull #=> 2
+pipeline.pull #=> 4
+pipeline.pull #=> nil
 ```
 
 ### Batch Worker
@@ -220,10 +220,10 @@ batch = batch_worker gathering: 3
 
 pipeline = source | batch
 
-pipeline.product #=> [0, 1, 2]
-pipeline.product #=> [3, 4, 5]
-pipeline.product #=> [6, 7]
-pipeline.product #=> nil
+pipeline.pull #=> [0, 1, 2]
+pipeline.pull #=> [3, 4, 5]
+pipeline.pull #=> [6, 7]
+pipeline.pull #=> nil
 ```
 
 Notice how the final batch doesn't have full compliment of three.
@@ -243,9 +243,9 @@ end
 
 pipeline = source | line_reader
 
-pipeline.product #=> ["some", "rain", "must\n"]
-pipeline.product #=> ["fall", "but", "ok"]
-pipeline.product #=> nil
+pipeline.pull #=> ["some", "rain", "must\n"]
+pipeline.pull #=> ["fall", "but", "ok"]
+pipeline.pull #=> nil
 ```
 
 ## Origins of Stepladder
@@ -342,7 +342,7 @@ end
 
 kitteh_tweets = tweet_getter | about_me | tweet_formatter
 
-while tweet = kitteh_tweets.product
+while tweet = kitteh_tweets.pull
   display(tweet)
 end
 ```
