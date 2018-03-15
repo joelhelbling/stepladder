@@ -13,7 +13,7 @@ module Stepladder
       # method-based tasks.
     end
 
-    def product
+    def shift
       ensure_ready_to_work!
       workflow.resume
     end
@@ -43,7 +43,7 @@ module Stepladder
     def workflow
       @my_little_machine ||= Fiber.new do
         loop do
-          value = supplier && supplier.product
+          value = supplier && supplier.shift
           if value.nil? || passes_filter?(value)
             Fiber.yield @task.call(value)
           end

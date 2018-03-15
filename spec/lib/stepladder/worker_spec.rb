@@ -2,7 +2,7 @@ require 'spec_helper'
 
 module Stepladder
   describe Worker do
-    it { should respond_to(:product, :supplier, :supplier=, :"|") }
+    it { should respond_to(:shift, :supplier, :supplier=, :"|") }
 
     describe "readiness" do
       context "with no supplier" do
@@ -60,7 +60,7 @@ module Stepladder
             end
           end
 
-          its(:product) { should be_copasetic }
+          its(:shift) { should be_copasetic }
         end
 
         context "as {:task => <proc/lambda>} passed to ::new" do
@@ -70,7 +70,7 @@ module Stepladder
             Worker.new task: callable_task
           end
 
-          its(:product) { should be_copasetic }
+          its(:shift) { should be_copasetic }
         end
       end
 
@@ -84,13 +84,13 @@ module Stepladder
         context "which accepts an argument" do
           let(:supplier) { double }
           before do
-            supplier.stub(:product).and_return(result)
+            supplier.stub(:shift).and_return(result)
             subject.supplier = supplier
             def subject.task(value)
               Fiber.yield value
             end
           end
-          its(:product) { should be_copasetic }
+          its(:shift) { should be_copasetic }
         end
 
         context "or even one which accepts no arguments" do
@@ -99,15 +99,15 @@ module Stepladder
               :copasetic
             end
           end
-          its(:product) { should be :copasetic }
+          its(:shift) { should be :copasetic }
         end
       end
 
       context "However, when a worker's task accepts an argument," do
         context "but the worker has no supplier," do
           subject { Worker.new { |value| value.do_whatnot } }
-          specify "#product throws an exception" do
-            expect { subject.product }.to raise_error(/has no supplier/)
+          specify "#shift throws an exception" do
+            expect { subject.shift }.to raise_error(/has no supplier/)
           end
         end
       end
@@ -146,11 +146,11 @@ module Stepladder
       describe "The Source Worker" do
         subject(:the_self_starter) { source_worker }
 
-        it "generates products without a supplier." do
-          the_self_starter.product.should == 1
-          the_self_starter.product.should == 2
-          the_self_starter.product.should == 3
-          the_self_starter.product.should be_nil
+        it "generates values without a supplier." do
+          the_self_starter.shift.should == 1
+          the_self_starter.shift.should == 2
+          the_self_starter.shift.should == 3
+          the_self_starter.shift.should be_nil
         end
       end
 
@@ -162,10 +162,10 @@ module Stepladder
         subject(:triplizer) { relay_worker }
 
         it "operates on values received from its supplier." do
-          triplizer.product.should == 3
-          triplizer.product.should == 6
-          triplizer.product.should == 9
-          triplizer.product.should be_nil
+          triplizer.shift.should == 3
+          triplizer.shift.should == 6
+          triplizer.shift.should == 9
+          triplizer.shift.should be_nil
         end
       end
 
@@ -177,9 +177,9 @@ module Stepladder
         subject(:oddball) { filter_worker }
 
         it "passes through only select values." do
-          oddball.product.should == 1
-          oddball.product.should == 3
-          oddball.product.should be_nil
+          oddball.shift.should == 1
+          oddball.shift.should == 3
+          oddball.shift.should be_nil
         end
       end
 
@@ -189,7 +189,7 @@ module Stepladder
             if value
               @collection = [value]
               while @collection.size < 3
-                @collection << supplier.product
+                @collection << supplier.shift
               end
               @collection
             end
@@ -201,8 +201,8 @@ module Stepladder
         subject(:collector) { collector_worker }
 
         it "collects values in threes" do
-          collector.product.should == [1,2,3]
-          collector.product.should be_nil
+          collector.shift.should == [1,2,3]
+          collector.shift.should be_nil
         end
       end
 
@@ -215,20 +215,20 @@ module Stepladder
       When(:pipeline) { source_worker | subscribing_worker }
 
       Then { subscribing_worker.supplier == source_worker }
-      Then { pipeline.product == :foo_bar }
+      Then { pipeline.shift == :foo_bar }
       Then { pipeline == subscribing_worker }
     end
 
-    describe "#product" do
+    describe "#shift" do
       Given(:work_product) { :whatever }
-      Given { supplier.stub(:product).and_return(work_product) }
+      Given { supplier.stub(:shift).and_return(work_product) }
       Given { subject.supplier = supplier }
       Given(:supplier) { double }
 
       context "resumes a fiber" do
         Given { Fiber.any_instance.should_receive(:resume).and_return(work_product) }
 
-        Then { subject.product }
+        Then { subject.shift }
       end
     end
 

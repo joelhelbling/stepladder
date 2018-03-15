@@ -9,7 +9,7 @@ Initialize with a block of code:
 ```ruby
 source_worker = Stepladder::Worker.new { "hulk" }
 
-source_worker.product #=> "hulk"
+source_worker.shift #=> "hulk"
 ```
 If you supply a worker with another worker as its supplier, then you
 can give it a task which accepts a value:
@@ -18,7 +18,7 @@ can give it a task which accepts a value:
 relay_worker = Stepladder::Worker.new { |name| name.upcase }
 relay_worker.supplier = source_worker
 
-relay_worker.product #=> "HULK"
+relay_worker.shift #=> "HULK"
 ```
 
 You can also initialize a worker by passing in a callable object
@@ -28,7 +28,7 @@ as its task:
 capitalizer = Proc.new { |name| name.capitalize }
 relay_worker = Stepladder::Worker.new(task: capitalizer, supplier: source_worker)
 
-relay_worker.product #=> 'Hulk'
+relay_worker.shift #=> 'Hulk'
 ```
 
 A worker also has an accessor for its @task:
@@ -37,7 +37,7 @@ A worker also has an accessor for its @task:
 doofusizer = Proc.new { |name| name.gsub(/u/, 'oo') }
 relay_worker.task = doofusizer
 
-relay_worker.product #=> 'hoolk'
+relay_worker.shift #=> 'hoolk'
 ```
 
 And finally, you can provide a task by directly overriding the
@@ -48,7 +48,7 @@ def relay_worker.task(name)
   name.to_sym
 end
 
-relay_worker.product #=> :hulk
+relay_worker.shift #=> :hulk
 ```
 
 Even workers without a task have a task; all workers actually come
@@ -57,7 +57,7 @@ with a default task which simply passes on the received value unchanged:
 ```ruby
 useless_worker = Stepladder::Worker.new(supplier: source_worker)
 
-useless_worker.product #=> 'hulk'
+useless_worker.shift #=> 'hulk'
 ```
 
 This turns out to be helpful in implementing filter workers, which are up next.
@@ -78,9 +78,9 @@ end
 odd_number_filter = Proc.new { |number| number % 2 > 0 }
 filter_worker = Stepladder::Worker.new filter: odd_number_filter
 
-filter_worker.product #=> 1
-filter_worker.product #=> 3
-filter_worker.product #=> nil
+filter_worker.shift #=> 1
+filter_worker.shift #=> 3
+filter_worker.shift #=> nil
 ```
 
 ## The pipeline DSL
@@ -95,7 +95,7 @@ pipeline = source_worker | filter_worker | relay_worker | another worker
 chain):
 
 ```ruby
-while next_value = pipeline.product do
+while next_value = pipeline.shift do
   do_something_with next_value
   # etc.
 end
