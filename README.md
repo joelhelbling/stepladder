@@ -248,6 +248,30 @@ pipeline.shift #=> ["fall", "but", "ok"]
 pipeline.shift #=> nil
 ```
 
+### Splitter Worker
+
+The splitter worker accepts a value from its supply, and generates an array
+and then successively returns each element of the array.  Once the array
+has been expended, the splitter worker appeals to its supplier for another
+value and the process repeats.
+
+```ruby
+source = source_worker [
+  'A bold', 'move westward' ]
+
+splitter = splitter_worker do |value|
+  value.split(' ')
+end
+
+pipeline = source | splitter
+
+pipeline.shift #=> 'A'
+pipeline.shift #=> 'bold'
+pipeline.shift #=> 'move'
+pipeline.shift #=> 'westward'
+pipeline.shift #=> nil
+```
+
 ## Origins of Stepladder
 
 Stepladder grew out of experimentation with Ruby fibers, after readings
@@ -364,10 +388,7 @@ The Stepladder::Worker documentation has been moved
 
 ## Roadmap
 
-- `splitter_worker` -- would accept a value and return an array.  The
-  elements of that returned array would then be output as separate values
-  to the next worker in the pipeline.
-- `batch_worker trailing: n` -- accepts a value, and returns the last n
+- `rolling_worker trails: n` -- accepts a value, and returns the last n
   values.  This would mean that no values would be returned until n
   values had been accumulated.  This could be useful for things like
   rolling averages.

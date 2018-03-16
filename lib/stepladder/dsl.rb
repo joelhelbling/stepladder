@@ -81,6 +81,22 @@ module Stepladder
       end
     end
 
+    def splitter_worker(&block)
+      ensure_regular_arity(block)
+
+      Worker.new do |value|
+        if value.nil?
+          value
+        else
+          parts = block.call(value)
+          while parts.size > 1 do
+            handoff parts.shift
+          end
+          parts.shift
+        end
+      end
+    end
+
     def handoff(something)
       Fiber.yield something
     end

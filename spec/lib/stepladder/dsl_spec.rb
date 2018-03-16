@@ -246,8 +246,31 @@ module Stepladder
             Given(:invocation) { -> { batch_worker() { |a,b| :foo } } }
             Then { expect(invocation).to raise_error(/arity == 1/) }
           end
-
         end
+      end
+    end
+
+    context '#splitter_worker' do
+
+      context 'normal usage' do
+        Given(:source) { source_worker ['A bold', 'move northward'] }
+        Given(:worker) do
+          splitter_worker do |value|
+            value.split(' ')
+          end
+        end
+
+        When { source | worker }
+
+        Then { worker.shift == 'A' }
+        And  { worker.shift == 'bold' }
+        And  { worker.shift == 'move' }
+        And  { worker.shift == 'northward' }
+        And  { worker.shift.nil? }
+      end
+
+      context 'illegal usage' do
+
       end
     end
 
