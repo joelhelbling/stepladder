@@ -182,5 +182,58 @@ module Stepladder
       end
     end
 
+    describe 'worker receives a |supply|' do
+      Given(:source_worker) { Worker.new { :foo } }
+      Given(:worker) { Worker.new { |value, supply| supply } }
+
+      When(:pipeline) { source_worker | worker }
+
+      Then { pipeline.shift == source_worker }
+    end
+
+    describe 'worker receives a |context|' do
+      Given(:source_worker) { Worker.new { :foo } }
+
+      When(:pipeline) { source_worker | worker }
+
+      context 'default context' do
+        Given(:worker) { Worker.new { |value, supply, context| context } }
+        When(:context) { pipeline.shift }
+
+        context 'persists from one shift to the next' do
+          When { context.nothing = :something }
+
+          Then { pipeline.shift.nothing == :something }
+          And  { pipeline.shift.class == OpenStruct }
+        end
+      end
+
+      context 'defined context' do
+        Given(:source_worker) do
+          Worker.new do
+            numbers = (1..3).to_a
+            while value = numbers.shift
+              Fiber.yield value
+            end
+          end
+        end
+
+        context 'can be used for configuration' do
+          Given(:context) { OpenStruct.new({ foo: 'bar' }) }
+          Given(:worker) do
+            Worker.new(context: context) do |value, supply, context|
+              value && "#{context.foo}_#{value}".to_sym
+            end
+          end
+
+          Then { pipeline.shift == :bar_1 }
+          And  { pipeline.shift == :bar_2 }
+          And  { pipeline.shift == :bar_3 }
+          And  { pipeline.shift.nil? }
+        end
+      end
+
+    end
+
   end
 end
