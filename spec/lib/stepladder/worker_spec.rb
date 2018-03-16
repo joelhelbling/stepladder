@@ -131,16 +131,6 @@ module Stepladder
         end
       end
 
-      let(:filter) do
-        Proc.new do |number|
-          number % 2 > 0
-        end
-      end
-
-      let(:filter_worker) do
-        Worker.new filter: filter
-      end
-
       let(:collector_worker) { Worker.new }
 
       describe "The Source Worker" do
@@ -166,20 +156,6 @@ module Stepladder
           triplizer.shift.should == 6
           triplizer.shift.should == 9
           triplizer.shift.should be_nil
-        end
-      end
-
-      describe "The Filter" do
-        before do
-          filter_worker.supply = source_worker
-        end
-
-        subject(:oddball) { filter_worker }
-
-        it "passes through only select values." do
-          oddball.shift.should == 1
-          oddball.shift.should == 3
-          oddball.shift.should be_nil
         end
       end
 

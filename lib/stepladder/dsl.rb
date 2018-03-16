@@ -43,9 +43,14 @@ module Stepladder
         throw_with 'You cannot supply two callables'
       end
       callable = argument.respond_to?(:call) ? argument : block
-
       ensure_callable(callable)
-      Worker.new filter: block
+
+      Worker.new do |value, supply|
+        while value && !callable.call(value) do
+          value = supply.shift
+        end
+        value
+      end
     end
 
     def batch_worker(options = {gathering: 1}, &block)

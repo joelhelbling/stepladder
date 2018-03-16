@@ -44,9 +44,7 @@ module Stepladder
       @my_little_machine ||= Fiber.new do
         loop do
           value = supply && supply.shift
-          if value.nil? || passes_filter?(value)
-            Fiber.yield @task.call(value)
-          end
+          Fiber.yield @task.call(value, supply)
         end
       end
     end
