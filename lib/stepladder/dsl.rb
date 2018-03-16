@@ -59,7 +59,7 @@ module Stepladder
           if value
             @collection = [value]
             until batch_complete?(@collection.last)
-              @collection << supplier.shift
+              @collection << supply.shift
             end
             @collection.compact
           end

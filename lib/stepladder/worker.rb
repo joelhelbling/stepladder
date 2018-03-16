@@ -1,9 +1,9 @@
 module Stepladder
   class Worker
-    attr_accessor :supplier
+    attr_accessor :supply
 
     def initialize(p={}, &block)
-      @supplier = p[:supplier]
+      @supply = p[:supply]
       @filter   = p[:filter] || default_filter
       @task     = block || p[:task]
       # don't define default task here
@@ -19,11 +19,11 @@ module Stepladder
     end
 
     def ready_to_work?
-      @task && (supplier || !task_accepts_a_value?)
+      @task && (supply || !task_accepts_a_value?)
     end
 
     def |(subscribing_worker)
-      subscribing_worker.supplier = self
+      subscribing_worker.supply = self
       subscribing_worker
     end
 
@@ -36,14 +36,14 @@ module Stepladder
       # asked for product
 
       unless ready_to_work?
-        raise "This worker's task expects to receive a value from a supplier, but has no supplier."
+        raise "This worker's task expects to receive a value from a supplier, but has no supply."
       end
     end
 
     def workflow
       @my_little_machine ||= Fiber.new do
         loop do
-          value = supplier && supplier.shift
+          value = supply && supply.shift
           if value.nil? || passes_filter?(value)
             Fiber.yield @task.call(value)
           end
@@ -58,7 +58,7 @@ module Stepladder
         else
           Proc.new { self.task }
         end
-      else # no task method, so assuming we have supplier...
+      else # no task method, so assuming we have supply...
         Proc.new { |value| value }
       end
     end

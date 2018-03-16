@@ -11,12 +11,12 @@ source_worker = Stepladder::Worker.new { "hulk" }
 
 source_worker.shift #=> "hulk"
 ```
-If you supply a worker with another worker as its supplier, then you
+If you supply a worker with another worker as its supply, then you
 can give it a task which accepts a value:
 
 ```ruby
 relay_worker = Stepladder::Worker.new { |name| name.upcase }
-relay_worker.supplier = source_worker
+relay_worker.supply = source_worker
 
 relay_worker.shift #=> "HULK"
 ```
@@ -26,7 +26,7 @@ as its task:
 
 ```ruby
 capitalizer = Proc.new { |name| name.capitalize }
-relay_worker = Stepladder::Worker.new(task: capitalizer, supplier: source_worker)
+relay_worker = Stepladder::Worker.new(task: capitalizer, supply: source_worker)
 
 relay_worker.shift #=> 'Hulk'
 ```
@@ -55,7 +55,7 @@ Even workers without a task have a task; all workers actually come
 with a default task which simply passes on the received value unchanged:
 
 ```ruby
-useless_worker = Stepladder::Worker.new(supplier: source_worker)
+useless_worker = Stepladder::Worker.new(supply: source_worker)
 
 useless_worker.shift #=> 'hulk'
 ```

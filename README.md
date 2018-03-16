@@ -105,7 +105,7 @@ which to operate:
 ```ruby
 source = source_worker (0..3)
 
-squarer.supplier = source
+squarer.supply = source
 ```
 
 Or, if you prefer, the DSL provides a vertical pipe for linking the

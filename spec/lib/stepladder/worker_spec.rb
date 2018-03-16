@@ -2,10 +2,10 @@ require 'spec_helper'
 
 module Stepladder
   describe Worker do
-    it { should respond_to(:shift, :supplier, :supplier=, :"|") }
+    it { should respond_to(:shift, :supply, :supply=, :"|") }
 
     describe "readiness" do
-      context "with no supplier" do
+      context "with no supply" do
         context "with no task" do
           it { should_not be_ready_to_work }
         end
@@ -23,9 +23,9 @@ module Stepladder
         end
       end
 
-      context "with a supplier" do
+      context "with a supply" do
         before do
-          subject.supplier = Worker.new { "foofoo" }
+          subject.supply = Worker.new { "foofoo" }
         end
         context "with no task" do
           it { should_not be_ready_to_work }
@@ -82,10 +82,10 @@ module Stepladder
         subject { Worker.new }
 
         context "which accepts an argument" do
-          let(:supplier) { double }
+          let(:supply) { double }
           before do
-            supplier.stub(:shift).and_return(result)
-            subject.supplier = supplier
+            supply.stub(:shift).and_return(result)
+            subject.supply = supply
             def subject.task(value)
               Fiber.yield value
             end
@@ -104,10 +104,10 @@ module Stepladder
       end
 
       context "However, when a worker's task accepts an argument," do
-        context "but the worker has no supplier," do
+        context "but the worker has no supply," do
           subject { Worker.new { |value| value.do_whatnot } }
           specify "#shift throws an exception" do
-            expect { subject.shift }.to raise_error(/has no supplier/)
+            expect { subject.shift }.to raise_error(/has no supply/)
           end
         end
       end
@@ -146,7 +146,7 @@ module Stepladder
       describe "The Source Worker" do
         subject(:the_self_starter) { source_worker }
 
-        it "generates values without a supplier." do
+        it "generates values without a supply." do
           the_self_starter.shift.should == 1
           the_self_starter.shift.should == 2
           the_self_starter.shift.should == 3
@@ -156,12 +156,12 @@ module Stepladder
 
       describe "The Relay Worker" do
         before do
-          relay_worker.supplier = source_worker
+          relay_worker.supply = source_worker
         end
 
         subject(:triplizer) { relay_worker }
 
-        it "operates on values received from its supplier." do
+        it "operates on values received from its supply." do
           triplizer.shift.should == 3
           triplizer.shift.should == 6
           triplizer.shift.should == 9
@@ -171,7 +171,7 @@ module Stepladder
 
       describe "The Filter" do
         before do
-          filter_worker.supplier = source_worker
+          filter_worker.supply = source_worker
         end
 
         subject(:oddball) { filter_worker }
@@ -189,13 +189,13 @@ module Stepladder
             if value
               @collection = [value]
               while @collection.size < 3
-                @collection << supplier.shift
+                @collection << supply.shift
               end
               @collection
             end
           end
 
-          collector_worker.supplier = source_worker
+          collector_worker.supply = source_worker
         end
 
         subject(:collector) { collector_worker }
@@ -214,16 +214,16 @@ module Stepladder
 
       When(:pipeline) { source_worker | subscribing_worker }
 
-      Then { subscribing_worker.supplier == source_worker }
+      Then { subscribing_worker.supply == source_worker }
       Then { pipeline.shift == :foo_bar }
       Then { pipeline == subscribing_worker }
     end
 
     describe "#shift" do
       Given(:work_product) { :whatever }
-      Given { supplier.stub(:shift).and_return(work_product) }
-      Given { subject.supplier = supplier }
-      Given(:supplier) { double }
+      Given { supply.stub(:shift).and_return(work_product) }
+      Given { subject.supply = supply }
+      Given(:supply) { double }
 
       context "resumes a fiber" do
         Given { Fiber.any_instance.should_receive(:resume).and_return(work_product) }
