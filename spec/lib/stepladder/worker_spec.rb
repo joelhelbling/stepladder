@@ -131,8 +131,6 @@ module Stepladder
         end
       end
 
-      let(:collector_worker) { Worker.new }
-
       describe "The Source Worker" do
         subject(:the_self_starter) { source_worker }
 
@@ -158,30 +156,6 @@ module Stepladder
           triplizer.shift.should be_nil
         end
       end
-
-      describe "The Collector" do
-        before do
-          def collector_worker.task(value)
-            if value
-              @collection = [value]
-              while @collection.size < 3
-                @collection << supply.shift
-              end
-              @collection
-            end
-          end
-
-          collector_worker.supply = source_worker
-        end
-
-        subject(:collector) { collector_worker }
-
-        it "collects values in threes" do
-          collector.shift.should == [1,2,3]
-          collector.shift.should be_nil
-        end
-      end
-
     end
 
     describe "#|" do

@@ -53,30 +53,30 @@ module Stepladder
       end
     end
 
+    class BatchContext < OpenStruct
+      def batch_complete?(value, collection)
+        value.nil? ||
+          !! batch_full.call(value, collection)
+      end
+    end
+
     def batch_worker(options = {gathering: 1}, &block)
       ensure_regular_arity(block) if block
+      batch_full = block ||
+        Proc.new { |_, batch| batch.size >= options[:gathering] }
 
-      Worker.new.tap do |worker|
-        worker.instance_variable_set(:@batch_size, options[:gathering])
-        worker.instance_variable_set(:@batch_complete_block, block)
+      batch_context = BatchContext.new({ batch_full: batch_full })
 
-        def worker.task(value)
-          if value
-            @collection = [value]
-            until batch_complete?(@collection.last)
-              @collection << supply.shift
-            end
-            @collection.compact
+      Worker.new(context: batch_context) do |value, supply, context|
+        if value
+          context.collection = [value]
+          until context.batch_complete?(
+              context.collection.last,
+              context.collection
+          )
+            context.collection << supply.shift
           end
-        end
-
-        def worker.batch_complete?(value)
-          return true if value.nil?
-          if @batch_complete_block
-            !! @batch_complete_block.call(value)
-          else
-            @collection.size >= @batch_size
-          end
+          context.collection.compact
         end
       end
     end

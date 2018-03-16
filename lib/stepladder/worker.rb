@@ -1,11 +1,14 @@
+require 'ostruct'
+
 module Stepladder
   class Worker
     attr_accessor :supply
 
     def initialize(p={}, &block)
-      @supply = p[:supply]
+      @supply   = p[:supply]
       @filter   = p[:filter] || default_filter
       @task     = block || p[:task]
+      @context  = p[:context] || OpenStruct.new
       # don't define default task here
       # because we want to allow for
       # an initialized worker to have
@@ -44,7 +47,7 @@ module Stepladder
       @my_little_machine ||= Fiber.new do
         loop do
           value = supply && supply.shift
-          Fiber.yield @task.call(value, supply)
+          Fiber.yield @task.call(value, supply, @context)
         end
       end
     end

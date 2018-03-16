@@ -198,12 +198,11 @@ module Stepladder
     end
 
     describe '#batch_worker' do
-      Given(:source) { source_worker (0..7) }
-
       context 'normal usage' do
         When { source | worker }
 
         context 'with specified "gathering" batch size' do
+          Given(:source) { source_worker (0..7) }
           Given(:worker) do
             batch_worker gathering: 3
           end
