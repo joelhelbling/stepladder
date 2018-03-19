@@ -272,6 +272,35 @@ pipeline.shift #=> 'westward'
 pipeline.shift #=> nil
 ```
 
+### Trailing Worker
+
+
+The trailing worker accepts a value, and returns an array containing the
+last _n_ values.  This worker could be useful for things like rolling averages.
+
+No values are returned until n values had been accumulated. New values are
+_unshifted_ into the zero-th position in the array of trailing values, so
+that a given value will graduate through the array until it reaches the last
+position and then subsequently removed.
+
+Maybe it's easiest to just give an example:
+
+```ruby
+source = source_worker (0..5)
+trailer = trailing_worker 4
+
+pipeline = source | trailer
+
+pipeline.shift #=> [3,2,1,0]
+pipeline.shift #=> [4,3,2,1]
+pipeline.shift #=> [5,4,3,2]
+pipeline.shift #=> nil
+```
+
+Note that as soon as a nil is received from the supplying queue, the trailing
+worker simply provides a nil.
+
+
 ## Origins of Stepladder
 
 Stepladder grew out of experimentation with Ruby fibers, after readings
@@ -388,10 +417,6 @@ The Stepladder::Worker documentation has been moved
 
 ## Roadmap
 
-- `rolling_worker trails: n` -- accepts a value, and returns the last n
-  values.  This would mean that no values would be returned until n
-  values had been accumulated.  This could be useful for things like
-  rolling averages.
 - `side_worker(:hardened) { |v| do_stuff_with(v) }` -- the `:hardened`
   flag would attempt to ensure no side effects may occur by using
   `Marshal` to dump/load the value before handing it to the workers

@@ -97,6 +97,25 @@ module Stepladder
       end
     end
 
+    def trailing_worker(trail_length=2)
+      trail = []
+      Worker.new do |value, supply|
+        if value
+          trail.unshift value
+          if trail.size >= trail_length
+            trail.pop
+          end
+          while trail.size < trail_length
+            trail.unshift supply.shift
+          end
+
+          trail
+        else
+          value
+        end
+      end
+    end
+
     def handoff(something)
       Fiber.yield something
     end

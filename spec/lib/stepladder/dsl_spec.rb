@@ -292,7 +292,32 @@ module Stepladder
             Then { expect(invocation).to raise_error(/arity == 1/) }
           end
         end
+      end
+    end
 
+    context '#trailing_worker' do
+      context 'normal usage' do
+        Given(:source) { source_worker (0..5) }
+        Given(:worker) { trailing_worker 4 }
+
+        When { source | worker }
+
+        Then { worker.shift == [3,2,1,0] }
+        And  { worker.shift == [4,3,2,1] }
+        And  { worker.shift == [5,4,3,2] }
+        And  { worker.shift.nil? }
+      end
+
+      context 'default trail size' do
+        Given(:source) { source_worker (0..3) }
+        Given(:worker) { trailing_worker }
+
+        When { source | worker }
+
+        Then { worker.shift == [1,0] }
+        And  { worker.shift == [2,1] }
+        And  { worker.shift == [3,2] }
+        And  { worker.shift.nil? }
       end
     end
 
