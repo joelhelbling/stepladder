@@ -1,8 +1,8 @@
 require 'spec_helper'
 
 module Stepladder
-  describe Dsl do
-    include Stepladder::Dsl
+  describe DSL do
+    include described_class
 
     describe '#source_worker' do
       context 'normal usage' do

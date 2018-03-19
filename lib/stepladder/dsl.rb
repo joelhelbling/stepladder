@@ -1,7 +1,7 @@
 module Stepladder
   class WorkerInitializationError < StandardError; end
 
-  module Dsl
+  module DSL
     def source_worker(argument=nil, &block)
       ensure_correct_arity_for!(argument, block)
 

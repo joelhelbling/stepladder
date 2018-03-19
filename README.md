@@ -37,7 +37,7 @@ for several common types of workers.  Let's look at them.
 But first, be sure to include the DSL mixin:
 
 ```ruby
-include Stepladder::Dsl
+include Stepladder::DSL
 ```
 
 ### Source Worker
@@ -350,7 +350,7 @@ Consider the following ~~code~~ vaporware:
 ```ruby
 SUBJECT = 'kitteh'
 
-include Stepladder::Dsl
+include Stepladder::DSL
 
 tweet_getter = source_worker do
   twitter_api.fetch_my_tweets
