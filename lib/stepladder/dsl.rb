@@ -88,7 +88,7 @@ module Stepladder
         if value.nil?
           value
         else
-          parts = block.call(value)
+          parts = [block.call(value)].flatten
           while parts.size > 1 do
             handoff parts.shift
           end

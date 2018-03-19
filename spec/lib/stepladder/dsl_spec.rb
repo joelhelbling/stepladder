@@ -251,7 +251,6 @@ module Stepladder
     end
 
     context '#splitter_worker' do
-
       context 'normal usage' do
         Given(:source) { source_worker ['A bold', 'move northward'] }
         Given(:worker) do
@@ -269,7 +268,30 @@ module Stepladder
         And  { worker.shift.nil? }
       end
 
+      context 'always returns an array' do
+        Given(:source) { source_worker [:foo] }
+        Given(:worker) do
+          splitter_worker { |value| value }
+        end
+
+        When { source | worker }
+
+        Then { worker.shift == :foo }
+        And  { worker.shift == nil }
+      end
+
       context 'illegal usage' do
+        context 'requires a callable' do
+          context 'with arity == 0' do
+            Given(:invocation) { -> { splitter_worker() { [] } } }
+            Then { expect(invocation).to raise_error(/arity == 1/) }
+          end
+
+          context 'with arity > 1' do
+            Given(:invocation) { -> { splitter_worker() { |a,b| [] } } }
+            Then { expect(invocation).to raise_error(/arity == 1/) }
+          end
+        end
 
       end
     end
