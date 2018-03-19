@@ -60,35 +60,12 @@ useless_worker = Stepladder::Worker.new(supply: source_worker)
 useless_worker.shift #=> 'hulk'
 ```
 
-This turns out to be helpful in implementing filter workers, which are up next.
-
-## Workers can have filters...
-
-Given a source worker which provides integers 1-3:
-
-```ruby
-source = Stepladder::Worker.new do
-  (1..3).each { |number| handoff number }
-end
-```
-
-...we can define a subscribing worker with a filter:
-
-```ruby
-odd_number_filter = Proc.new { |number| number % 2 > 0 }
-filter_worker = Stepladder::Worker.new filter: odd_number_filter
-
-filter_worker.shift #=> 1
-filter_worker.shift #=> 3
-filter_worker.shift #=> nil
-```
-
 ## The pipeline DSL
 
 You can stitch your workers together using the vertical pipe ("|") like so:
 
 ```ruby
-pipeline = source_worker | filter_worker | relay_worker | another worker
+pipeline = source_worker | relay_worker | another worker
 ```
 
 ...and then just call on that pipeline (it's actually the last worker in the

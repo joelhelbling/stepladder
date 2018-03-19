@@ -6,7 +6,6 @@ module Stepladder
 
     def initialize(p={}, &block)
       @supply   = p[:supply]
-      @filter   = p[:filter] || default_filter
       @task     = block || p[:task]
       @context  = p[:context] || OpenStruct.new
       # don't define default task here
@@ -74,16 +73,6 @@ module Stepladder
 
     def task_method_accepts_a_value?
       self.method(:task).arity > 0
-    end
-
-    def default_filter
-      Proc.new do |value|
-        true
-      end
-    end
-
-    def passes_filter?(value)
-      @filter.call value
     end
 
   end
