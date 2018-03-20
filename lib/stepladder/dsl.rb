@@ -28,12 +28,15 @@ module Stepladder
       end
     end
 
-    def side_worker(&block)
+    def side_worker(mode=:normal, &block)
       ensure_regular_arity(block)
 
       Worker.new do |value|
         value.tap do |v|
-          v && block.call(v)
+          used_value = mode == :hardened ?
+            Marshal.load(Marshal.dump(v)) : v
+
+          v && block.call(used_value)
         end
       end
     end

@@ -178,13 +178,54 @@ same token, if there is a problem with a side effect, troubleshooting
 it will be much simpler if the side effects are already isolated and
 named.
 
-\* _Under consideration: a variant of the side-effect which attempts
-to prevent side-effects by doing a `Marshal.dump/load`.  But the
-potential overhead in all that marshalling makes me hesitant to make
-this the default behavior.  Making it available as an option, however,
-opens the possibility to troubleshoot side effects: if the marshalling
-eliminates an unwanted mutation, then chances are that you have a
-side effect that is doing mutation._
+Another measure for preventing side workers from creating unwanted
+side-effects is to use `:hardened` mode.  That's right, `side_worker`
+has a mode (which defaults to `:normal`).  When set to `:hardened`,
+each value is `Marshal.dump`ed and `Marshal.load`ed before being
+passed to the side worker's callable.  This helps to ensure that
+the original value will be passed through to the next worker in the
+queue in a pristine state (unmodified), and that no future or
+subsequent modification can take place.
+
+Given a source...
+
+```ruby
+source = source_worker [[:foo], [:bar]]
+```
+
+Consider this unsafe, unhardened side worker:
+
+```ruby
+unsafe = side_worker { |v| v << :boo }
+```
+
+This produces unwanted mutations, because of the `<<`.
+
+```ruby
+pipeline = source | unsafe
+
+pipeline.shift #=> [:foo, :boo] <-- Oh noes!
+pipeline.shift #=> [:bar, :boo] <-- Disaster!
+pipeline.shift #=> nil
+```
+
+Let's harden it:
+
+```ruby
+unsafe = side_worker(:hardened) { |v| v << :boo }
+```
+
+The `:hardened` side worker doesn't have access to the original
+value, and therefore its shenanigans are moot with respect to
+the main workflow:
+
+```ruby
+pipeline = source | unsafe
+
+pipeline.shift #=> [:foo] <-- No changes
+pipeline.shift #=> [:bar] <-- Much better
+pipeline.shift #=> nil
+```
 
 ### Filter Worker
 
@@ -417,9 +458,3 @@ The Stepladder::Worker documentation has been moved
 
 ## Roadmap
 
-- `side_worker(:hardened) { |v| do_stuff_with(v) }` -- the `:hardened`
-  flag would attempt to ensure no side effects may occur by using
-  `Marshal` to dump/load the value before handing it to the workers
-  callable.  Also might make a runtime-wide toggle which hardens all
-  side_workers, which could be useful in flushing out side workers
-  which are doing inadvertent mutation.

@@ -145,6 +145,34 @@ module Stepladder
         And  { side_effect == [0, 2, 4] }
       end
 
+      context 'mode' do
+        Given(:source) { source_worker [[:foo], [:bar]] }
+        Given(:unsafe_task) { Proc.new {|v| v << :boo } }
+
+        When { source | worker }
+
+        context ':normal (default)' do
+          Given(:worker) do
+            side_worker(&unsafe_task)
+          end
+
+          Then { worker.shift == [:foo, :boo] }
+          And  { worker.shift == [:bar, :boo] }
+          And  { worker.shift.nil? }
+
+        end
+
+        context ':hardened' do
+          Given(:worker) do
+            side_worker :hardened, &unsafe_task
+          end
+
+          Then { worker.shift == [:foo] }
+          And  { worker.shift == [:bar] }
+          And  { worker.shift.nil? }
+        end
+      end
+
       context 'illegal usage' do
         context 'arity == 0' do
           Given(:invocation) do
