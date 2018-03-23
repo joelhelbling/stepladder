@@ -2,7 +2,7 @@ require 'ostruct'
 
 module Stepladder
   class Worker
-    attr_accessor :supply
+    attr_reader :supply
 
     def initialize(p={}, &block)
       @supply   = p[:supply]
@@ -24,18 +24,25 @@ module Stepladder
       @task && (supply || !task_accepts_a_value?)
     end
 
-    def |(subscribing_worker)
-      subscribing_worker.supply = self
-      subscribing_worker
+    def supplies(subscribing_party)
+      subscribing_party.supply = self
+      subscribing_party
+    end
+    alias_method :"|", :supplies
+
+    def supply=(supplier)
+      raise WorkerError.new("Worker is a source, and cannot accept a supply") unless suppliable?
+      @supply = supplier
+    end
+
+    def suppliable?
+      @task && @task.arity > 0
     end
 
     private
 
     def ensure_ready_to_work!
       @task ||= default_task
-      # at this point we will ensure a task exists
-      # because we know that the worker is being
-      # asked for product
 
       unless ready_to_work?
         raise "This worker's task expects to receive a value from a supplier, but has no supply."
@@ -52,15 +59,7 @@ module Stepladder
     end
 
     def default_task
-      if task_method_exists?
-        if task_method_accepts_a_value?
-          Proc.new { |value| self.task value }
-        else
-          Proc.new { self.task }
-        end
-      else # no task method, so assuming we have supply...
-        Proc.new { |value| value }
-      end
+      Proc.new { |value| value }
     end
 
     def task_accepts_a_value?
@@ -76,4 +75,6 @@ module Stepladder
     end
 
   end
+
+  class WorkerError < StandardError; end
 end

@@ -24,13 +24,14 @@ module Stepladder
       end
 
       context "with a supply" do
-        before do
-          subject.supply = Worker.new { "foofoo" }
-        end
         context "with no task" do
+          subject { Worker.new }
           it { should_not be_ready_to_work }
         end
         context "with a task which accepts a value" do
+          before do
+            subject.supply = Worker.new { "foofoo" }
+          end
           subject do
             Worker.new { |value| value.upcase }
           end
@@ -74,35 +75,6 @@ module Stepladder
         end
       end
 
-      # Note that tasks defined via instance methods will
-      # only have access to the scope of the worker.  If
-      # you want a worker to have access to a scope outside
-      # the worker, use a Proc or Lambda via the constructor
-      context "via an instance method" do
-        subject { Worker.new }
-
-        context "which accepts an argument" do
-          let(:supply) { double }
-          before do
-            supply.stub(:shift).and_return(result)
-            subject.supply = supply
-            def subject.task(value)
-              Fiber.yield value
-            end
-          end
-          its(:shift) { should be_copasetic }
-        end
-
-        context "or even one which accepts no arguments" do
-          before do
-            def subject.task
-              :copasetic
-            end
-          end
-          its(:shift) { should be :copasetic }
-        end
-      end
-
       context "However, when a worker's task accepts an argument," do
         context "but the worker has no supply," do
           subject { Worker.new { |value| value.do_whatnot } }
@@ -112,6 +84,25 @@ module Stepladder
         end
       end
 
+    end
+
+    describe '#suppliable?' do
+      context 'source worker' do
+        Given(:worker) { Worker.new { :foo } }
+        Then { expect(worker).to_not be_suppliable }
+      end
+      context 'non-source worker' do
+        Given(:worker) { Worker.new { |v| v +=1 } }
+        Then { expect(worker).to be_suppliable }
+      end
+    end
+
+    describe '#supply=' do
+      context 'source worker' do
+        Given(:source1) { Worker.new { :foo } }
+        Given(:source2) { Worker.new { :bar } }
+        Then { expect { source1.supply = source2 }.to raise_error(/cannot accept a supply/) }
+      end
     end
 
     describe "= EXAMPLE WORKER TYPES =" do
@@ -170,15 +161,16 @@ module Stepladder
     end
 
     describe "#shift" do
+      Given(:worker) { Worker.new { |v| v } }
       Given(:work_product) { :whatever }
       Given { supply.stub(:shift).and_return(work_product) }
-      Given { subject.supply = supply }
+      Given { worker.supply = supply }
       Given(:supply) { double }
 
       context "resumes a fiber" do
         Given { Fiber.any_instance.should_receive(:resume).and_return(work_product) }
 
-        Then { subject.shift }
+        Then { worker.shift }
       end
     end
 
