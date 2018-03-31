@@ -37,7 +37,7 @@ for several common types of workers.  Let's look at them.
 But first, be sure to include the DSL mixin:
 
 ```ruby
-include Stepladder::Dsl
+include Stepladder::DSL
 ```
 
 ### Source Worker
@@ -51,9 +51,9 @@ string each time it is invoked:
 ```ruby
 worker = source_worker { "Number 9" }
 
-worker.product #=> "Number 9"
-worker.product #=> "Number 9"
-worker.product #=> "Number 9"
+worker.shift #=> "Number 9"
+worker.shift #=> "Number 9"
+worker.shift #=> "Number 9"
 # ...ad nauseum...
 ```
 
@@ -68,11 +68,11 @@ worker = source_worker do
   end
 end
 
-worker.product #=> 1001
-worker.product #=> 1002
-worker.product #=> 1003
-worker.product #=> nil
-worker.product #=> nil (and will be nil henceforth)
+worker.shift #=> 1001
+worker.shift #=> 1002
+worker.shift #=> 1003
+worker.shift #=> nil
+worker.shift #=> nil (and will be nil henceforth)
 ```
 
 If all you want is a source worker which generates a series of numbers
@@ -82,10 +82,10 @@ the DSL provides an easier way to do it:
 w1 = source_worker [0,1,2]
 w2 = source_worker (0..2)
 
-w1.product == w2.product #=> 0
-w1.product == w2.product #=> 1
-w1.product == w2.product #=> 2
-w1.product == w2.product #=> nil (and henceforth, etc.)
+w1.shift == w2.shift #=> 0
+w1.shift == w2.shift #=> 1
+w1.shift == w2.shift #=> 2
+w1.shift == w2.shift #=> nil (and henceforth, etc.)
 ```
 
 ### Relay Worker
@@ -105,7 +105,7 @@ which to operate:
 ```ruby
 source = source_worker (0..3)
 
-squarer.supplier = source
+squarer.supply = source
 ```
 
 Or, if you prefer, the DSL provides a vertical pipe for linking the
@@ -114,11 +114,11 @@ workers together into a pipeline:
 ```ruby
 pipeline = source | squarer
 
-pipeline.product #=> 0
-pipeline.product #=> 1
-pipeline.product #=> 4
-pipeline.product #=> 9
-pipeline.product #=> nil
+pipeline.shift #=> 0
+pipeline.shift #=> 1
+pipeline.shift #=> 4
+pipeline.shift #=> 9
+pipeline.shift #=> nil
 ```
 
 ### Side Worker
@@ -143,11 +143,11 @@ end
 # re-using "squarer" from above example...
 pipeline = source | even_stasher | squarer
 
-pipeline.product #=> 0
-pipeline.product #=> 1
-pipeline.product #=> 4
-pipeline.product #=> 9
-pipeline.product #=> nil
+pipeline.shift #=> 0
+pipeline.shift #=> 1
+pipeline.shift #=> 4
+pipeline.shift #=> 9
+pipeline.shift #=> nil
 
 evens #=> [0, 2]
 ```
@@ -178,13 +178,54 @@ same token, if there is a problem with a side effect, troubleshooting
 it will be much simpler if the side effects are already isolated and
 named.
 
-\* _Under consideration: a variant of the side-effect which attempts
-to prevent side-effects by doing a `Marshal.dump/load`.  But the
-potential overhead in all that marshalling makes me hesitant to make
-this the default behavior.  Making it available as an option, however,
-opens the possibility to troubleshoot side effects: if the marshalling
-eliminates an unwanted mutation, then chances are that you have a
-side effect that is doing mutation._
+Another measure for preventing side workers from creating unwanted
+side-effects is to use `:hardened` mode.  That's right, `side_worker`
+has a mode (which defaults to `:normal`).  When set to `:hardened`,
+each value is `Marshal.dump`ed and `Marshal.load`ed before being
+passed to the side worker's callable.  This helps to ensure that
+the original value will be passed through to the next worker in the
+queue in a pristine state (unmodified), and that no future or
+subsequent modification can take place.
+
+Given a source...
+
+```ruby
+source = source_worker [[:foo], [:bar]]
+```
+
+Consider this unsafe, unhardened side worker:
+
+```ruby
+unsafe = side_worker { |v| v << :boo }
+```
+
+This produces unwanted mutations, because of the `<<`.
+
+```ruby
+pipeline = source | unsafe
+
+pipeline.shift #=> [:foo, :boo] <-- Oh noes!
+pipeline.shift #=> [:bar, :boo] <-- Disaster!
+pipeline.shift #=> nil
+```
+
+Let's harden it:
+
+```ruby
+unsafe = side_worker(:hardened) { |v| v << :boo }
+```
+
+The `:hardened` side worker doesn't have access to the original
+value, and therefore its shenanigans are moot with respect to
+the main workflow:
+
+```ruby
+pipeline = source | unsafe
+
+pipeline.shift #=> [:foo] <-- No changes
+pipeline.shift #=> [:bar] <-- Much better
+pipeline.shift #=> nil
+```
 
 ### Filter Worker
 
@@ -202,10 +243,10 @@ end
 
 pipeline = source | filter
 
-pipeline.product #=> 0
-pipeline.product #=> 2
-pipeline.product #=> 4
-pipeline.product #=> nil
+pipeline.shift #=> 0
+pipeline.shift #=> 2
+pipeline.shift #=> 4
+pipeline.shift #=> nil
 ```
 
 ### Batch Worker
@@ -220,10 +261,10 @@ batch = batch_worker gathering: 3
 
 pipeline = source | batch
 
-pipeline.product #=> [0, 1, 2]
-pipeline.product #=> [3, 4, 5]
-pipeline.product #=> [6, 7]
-pipeline.product #=> nil
+pipeline.shift #=> [0, 1, 2]
+pipeline.shift #=> [3, 4, 5]
+pipeline.shift #=> [6, 7]
+pipeline.shift #=> nil
 ```
 
 Notice how the final batch doesn't have full compliment of three.
@@ -243,10 +284,63 @@ end
 
 pipeline = source | line_reader
 
-pipeline.product #=> ["some", "rain", "must\n"]
-pipeline.product #=> ["fall", "but", "ok"]
-pipeline.product #=> nil
+pipeline.shift #=> ["some", "rain", "must\n"]
+pipeline.shift #=> ["fall", "but", "ok"]
+pipeline.shift #=> nil
 ```
+
+### Splitter Worker
+
+The splitter worker accepts a value from its supply, and generates an array
+and then successively returns each element of the array.  Once the array
+has been expended, the splitter worker appeals to its supplier for another
+value and the process repeats.
+
+```ruby
+source = source_worker [
+  'A bold', 'move westward' ]
+
+splitter = splitter_worker do |value|
+  value.split(' ')
+end
+
+pipeline = source | splitter
+
+pipeline.shift #=> 'A'
+pipeline.shift #=> 'bold'
+pipeline.shift #=> 'move'
+pipeline.shift #=> 'westward'
+pipeline.shift #=> nil
+```
+
+### Trailing Worker
+
+
+The trailing worker accepts a value, and returns an array containing the
+last _n_ values.  This worker could be useful for things like rolling averages.
+
+No values are returned until n values had been accumulated. New values are
+_unshifted_ into the zero-th position in the array of trailing values, so
+that a given value will graduate through the array until it reaches the last
+position and then subsequently removed.
+
+Maybe it's easiest to just give an example:
+
+```ruby
+source = source_worker (0..5)
+trailer = trailing_worker 4
+
+pipeline = source | trailer
+
+pipeline.shift #=> [3,2,1,0]
+pipeline.shift #=> [4,3,2,1]
+pipeline.shift #=> [5,4,3,2]
+pipeline.shift #=> nil
+```
+
+Note that as soon as a nil is received from the supplying queue, the trailing
+worker simply provides a nil.
+
 
 ## Origins of Stepladder
 
@@ -326,7 +420,7 @@ Consider the following ~~code~~ vaporware:
 ```ruby
 SUBJECT = 'kitteh'
 
-include Stepladder::Dsl
+include Stepladder::DSL
 
 tweet_getter = source_worker do
   twitter_api.fetch_my_tweets
@@ -342,7 +436,7 @@ end
 
 kitteh_tweets = tweet_getter | about_me | tweet_formatter
 
-while tweet = kitteh_tweets.product
+while tweet = kitteh_tweets.shift
   display(tweet)
 end
 ```
@@ -364,16 +458,3 @@ The Stepladder::Worker documentation has been moved
 
 ## Roadmap
 
-- `splitter_worker` -- would accept a value and return an array.  The
-  elements of that returned array would then be output as separate values
-  to the next worker in the pipeline.
-- `batch_worker trailing: n` -- accepts a value, and returns the last n
-  values.  This would mean that no values would be returned until n
-  values had been accumulated.  This could be useful for things like
-  rolling averages.
-- `side_worker(:hardened) { |v| do_stuff_with(v) }` -- the `:hardened`
-  flag would attempt to ensure no side effects may occur by using
-  `Marshal` to dump/load the value before handing it to the workers
-  callable.  Also might make a runtime-wide toggle which hardens all
-  side_workers, which could be useful in flushing out side workers
-  which are doing inadvertent mutation.

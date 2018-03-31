@@ -1,11 +1,13 @@
+require 'ostruct'
+
 module Stepladder
   class Worker
-    attr_accessor :supplier
+    attr_reader :supply
 
     def initialize(p={}, &block)
-      @supplier = p[:supplier]
-      @filter   = p[:filter] || default_filter
+      @supply   = p[:supply]
       @task     = block || p[:task]
+      @context  = p[:context] || OpenStruct.new
       # don't define default task here
       # because we want to allow for
       # an initialized worker to have
@@ -13,54 +15,51 @@ module Stepladder
       # method-based tasks.
     end
 
-    def product
+    def shift
       ensure_ready_to_work!
       workflow.resume
     end
 
     def ready_to_work?
-      @task && (supplier || !task_accepts_a_value?)
+      @task && (supply || !task_accepts_a_value?)
     end
 
-    def |(subscribing_worker)
-      subscribing_worker.supplier = self
-      subscribing_worker
+    def supplies(subscribing_party)
+      subscribing_party.supply = self
+      subscribing_party
+    end
+    alias_method :"|", :supplies
+
+    def supply=(supplier)
+      raise WorkerError.new("Worker is a source, and cannot accept a supply") unless suppliable?
+      @supply = supplier
+    end
+
+    def suppliable?
+      @task && @task.arity > 0
     end
 
     private
 
     def ensure_ready_to_work!
       @task ||= default_task
-      # at this point we will ensure a task exists
-      # because we know that the worker is being
-      # asked for product
 
       unless ready_to_work?
-        raise "This worker's task expects to receive a value from a supplier, but has no supplier."
+        raise "This worker's task expects to receive a value from a supplier, but has no supply."
       end
     end
 
     def workflow
       @my_little_machine ||= Fiber.new do
         loop do
-          value = supplier && supplier.product
-          if value.nil? || passes_filter?(value)
-            Fiber.yield @task.call(value)
-          end
+          value = supply && supply.shift
+          Fiber.yield @task.call(value, supply, @context)
         end
       end
     end
 
     def default_task
-      if task_method_exists?
-        if task_method_accepts_a_value?
-          Proc.new { |value| self.task value }
-        else
-          Proc.new { self.task }
-        end
-      else # no task method, so assuming we have supplier...
-        Proc.new { |value| value }
-      end
+      Proc.new { |value| value }
     end
 
     def task_accepts_a_value?
@@ -75,15 +74,7 @@ module Stepladder
       self.method(:task).arity > 0
     end
 
-    def default_filter
-      Proc.new do |value|
-        true
-      end
-    end
-
-    def passes_filter?(value)
-      @filter.call value
-    end
-
   end
+
+  class WorkerError < StandardError; end
 end

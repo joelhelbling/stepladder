@@ -2,10 +2,10 @@ require 'spec_helper'
 
 module Stepladder
   describe Worker do
-    it { should respond_to(:product, :supplier, :supplier=, :"|") }
+    it { should respond_to(:shift, :supply, :supply=, :"|") }
 
     describe "readiness" do
-      context "with no supplier" do
+      context "with no supply" do
         context "with no task" do
           it { should_not be_ready_to_work }
         end
@@ -23,14 +23,15 @@ module Stepladder
         end
       end
 
-      context "with a supplier" do
-        before do
-          subject.supplier = Worker.new { "foofoo" }
-        end
+      context "with a supply" do
         context "with no task" do
+          subject { Worker.new }
           it { should_not be_ready_to_work }
         end
         context "with a task which accepts a value" do
+          before do
+            subject.supply = Worker.new { "foofoo" }
+          end
           subject do
             Worker.new { |value| value.upcase }
           end
@@ -60,7 +61,7 @@ module Stepladder
             end
           end
 
-          its(:product) { should be_copasetic }
+          its(:shift) { should be_copasetic }
         end
 
         context "as {:task => <proc/lambda>} passed to ::new" do
@@ -70,48 +71,38 @@ module Stepladder
             Worker.new task: callable_task
           end
 
-          its(:product) { should be_copasetic }
-        end
-      end
-
-      # Note that tasks defined via instance methods will
-      # only have access to the scope of the worker.  If
-      # you want a worker to have access to a scope outside
-      # the worker, use a Proc or Lambda via the constructor
-      context "via an instance method" do
-        subject { Worker.new }
-
-        context "which accepts an argument" do
-          let(:supplier) { double }
-          before do
-            supplier.stub(:product).and_return(result)
-            subject.supplier = supplier
-            def subject.task(value)
-              Fiber.yield value
-            end
-          end
-          its(:product) { should be_copasetic }
-        end
-
-        context "or even one which accepts no arguments" do
-          before do
-            def subject.task
-              :copasetic
-            end
-          end
-          its(:product) { should be :copasetic }
+          its(:shift) { should be_copasetic }
         end
       end
 
       context "However, when a worker's task accepts an argument," do
-        context "but the worker has no supplier," do
+        context "but the worker has no supply," do
           subject { Worker.new { |value| value.do_whatnot } }
-          specify "#product throws an exception" do
-            expect { subject.product }.to raise_error(/has no supplier/)
+          specify "#shift throws an exception" do
+            expect { subject.shift }.to raise_error(/has no supply/)
           end
         end
       end
 
+    end
+
+    describe '#suppliable?' do
+      context 'source worker' do
+        Given(:worker) { Worker.new { :foo } }
+        Then { expect(worker).to_not be_suppliable }
+      end
+      context 'non-source worker' do
+        Given(:worker) { Worker.new { |v| v +=1 } }
+        Then { expect(worker).to be_suppliable }
+      end
+    end
+
+    describe '#supply=' do
+      context 'source worker' do
+        Given(:source1) { Worker.new { :foo } }
+        Given(:source2) { Worker.new { :bar } }
+        Then { expect { source1.supply = source2 }.to raise_error(/cannot accept a supply/) }
+      end
     end
 
     describe "= EXAMPLE WORKER TYPES =" do
@@ -131,81 +122,31 @@ module Stepladder
         end
       end
 
-      let(:filter) do
-        Proc.new do |number|
-          number % 2 > 0
-        end
-      end
-
-      let(:filter_worker) do
-        Worker.new filter: filter
-      end
-
-      let(:collector_worker) { Worker.new }
-
       describe "The Source Worker" do
         subject(:the_self_starter) { source_worker }
 
-        it "generates products without a supplier." do
-          the_self_starter.product.should == 1
-          the_self_starter.product.should == 2
-          the_self_starter.product.should == 3
-          the_self_starter.product.should be_nil
+        it "generates values without a supply." do
+          the_self_starter.shift.should == 1
+          the_self_starter.shift.should == 2
+          the_self_starter.shift.should == 3
+          the_self_starter.shift.should be_nil
         end
       end
 
       describe "The Relay Worker" do
         before do
-          relay_worker.supplier = source_worker
+          relay_worker.supply = source_worker
         end
 
         subject(:triplizer) { relay_worker }
 
-        it "operates on values received from its supplier." do
-          triplizer.product.should == 3
-          triplizer.product.should == 6
-          triplizer.product.should == 9
-          triplizer.product.should be_nil
+        it "operates on values received from its supply." do
+          triplizer.shift.should == 3
+          triplizer.shift.should == 6
+          triplizer.shift.should == 9
+          triplizer.shift.should be_nil
         end
       end
-
-      describe "The Filter" do
-        before do
-          filter_worker.supplier = source_worker
-        end
-
-        subject(:oddball) { filter_worker }
-
-        it "passes through only select values." do
-          oddball.product.should == 1
-          oddball.product.should == 3
-          oddball.product.should be_nil
-        end
-      end
-
-      describe "The Collector" do
-        before do
-          def collector_worker.task(value)
-            if value
-              @collection = [value]
-              while @collection.size < 3
-                @collection << supplier.product
-              end
-              @collection
-            end
-          end
-
-          collector_worker.supplier = source_worker
-        end
-
-        subject(:collector) { collector_worker }
-
-        it "collects values in threes" do
-          collector.product.should == [1,2,3]
-          collector.product.should be_nil
-        end
-      end
-
     end
 
     describe "#|" do
@@ -214,22 +155,76 @@ module Stepladder
 
       When(:pipeline) { source_worker | subscribing_worker }
 
-      Then { subscribing_worker.supplier == source_worker }
-      Then { pipeline.product == :foo_bar }
+      Then { subscribing_worker.supply == source_worker }
+      Then { pipeline.shift == :foo_bar }
       Then { pipeline == subscribing_worker }
     end
 
-    describe "#product" do
+    describe "#shift" do
+      Given(:worker) { Worker.new { |v| v } }
       Given(:work_product) { :whatever }
-      Given { supplier.stub(:product).and_return(work_product) }
-      Given { subject.supplier = supplier }
-      Given(:supplier) { double }
+      Given { supply.stub(:shift).and_return(work_product) }
+      Given { worker.supply = supply }
+      Given(:supply) { double }
 
       context "resumes a fiber" do
         Given { Fiber.any_instance.should_receive(:resume).and_return(work_product) }
 
-        Then { subject.product }
+        Then { worker.shift }
       end
+    end
+
+    describe 'worker receives a |supply|' do
+      Given(:source_worker) { Worker.new { :foo } }
+      Given(:worker) { Worker.new { |value, supply| supply } }
+
+      When(:pipeline) { source_worker | worker }
+
+      Then { pipeline.shift == source_worker }
+    end
+
+    describe 'worker receives a |context|' do
+      Given(:source_worker) { Worker.new { :foo } }
+
+      When(:pipeline) { source_worker | worker }
+
+      context 'default context' do
+        Given(:worker) { Worker.new { |value, supply, context| context } }
+        When(:context) { pipeline.shift }
+
+        context 'persists from one shift to the next' do
+          When { context.nothing = :something }
+
+          Then { pipeline.shift.nothing == :something }
+          And  { pipeline.shift.class == OpenStruct }
+        end
+      end
+
+      context 'defined context' do
+        Given(:source_worker) do
+          Worker.new do
+            numbers = (1..3).to_a
+            while value = numbers.shift
+              Fiber.yield value
+            end
+          end
+        end
+
+        context 'can be used for configuration' do
+          Given(:context) { OpenStruct.new({ foo: 'bar' }) }
+          Given(:worker) do
+            Worker.new(context: context) do |value, supply, context|
+              value && "#{context.foo}_#{value}".to_sym
+            end
+          end
+
+          Then { pipeline.shift == :bar_1 }
+          And  { pipeline.shift == :bar_2 }
+          And  { pipeline.shift == :bar_3 }
+          And  { pipeline.shift.nil? }
+        end
+      end
+
     end
 
   end

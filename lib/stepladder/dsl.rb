@@ -1,7 +1,7 @@
 module Stepladder
   class WorkerInitializationError < StandardError; end
 
-  module Dsl
+  module DSL
     def source_worker(argument=nil, &block)
       ensure_correct_arity_for!(argument, block)
 
@@ -28,12 +28,15 @@ module Stepladder
       end
     end
 
-    def side_worker(&block)
+    def side_worker(mode=:normal, &block)
       ensure_regular_arity(block)
 
       Worker.new do |value|
         value.tap do |v|
-          v && block.call(v)
+          used_value = mode == :hardened ?
+            Marshal.load(Marshal.dump(v)) : v
+
+          v && block.call(used_value)
         end
       end
     end
@@ -43,35 +46,75 @@ module Stepladder
         throw_with 'You cannot supply two callables'
       end
       callable = argument.respond_to?(:call) ? argument : block
-
       ensure_callable(callable)
-      Worker.new filter: block
+
+      Worker.new do |value, supply|
+        while value && !callable.call(value) do
+          value = supply.shift
+        end
+        value
+      end
+    end
+
+    class BatchContext < OpenStruct
+      def batch_complete?(value, collection)
+        value.nil? ||
+          !! batch_full.call(value, collection)
+      end
     end
 
     def batch_worker(options = {gathering: 1}, &block)
       ensure_regular_arity(block) if block
+      batch_full = block ||
+        Proc.new { |_, batch| batch.size >= options[:gathering] }
 
-      Worker.new.tap do |worker|
-        worker.instance_variable_set(:@batch_size, options[:gathering])
-        worker.instance_variable_set(:@batch_complete_block, block)
+      batch_context = BatchContext.new({ batch_full: batch_full })
 
-        def worker.task(value)
-          if value
-            @collection = [value]
-            until batch_complete?(@collection.last)
-              @collection << supplier.product
-            end
-            @collection.compact
+      Worker.new(context: batch_context) do |value, supply, context|
+        if value
+          context.collection = [value]
+          until context.batch_complete?(
+              context.collection.last,
+              context.collection
+          )
+            context.collection << supply.shift
           end
+          context.collection.compact
         end
+      end
+    end
 
-        def worker.batch_complete?(value)
-          return true if value.nil?
-          if @batch_complete_block
-            !! @batch_complete_block.call(value)
-          else
-            @collection.size >= @batch_size
+    def splitter_worker(&block)
+      ensure_regular_arity(block)
+
+      Worker.new do |value|
+        if value.nil?
+          value
+        else
+          parts = [block.call(value)].flatten
+          while parts.size > 1 do
+            handoff parts.shift
           end
+          parts.shift
+        end
+      end
+    end
+
+    def trailing_worker(trail_length=2)
+      trail = []
+      Worker.new do |value, supply|
+        if value
+          trail.unshift value
+          if trail.size >= trail_length
+            trail.pop
+          end
+          while trail.size < trail_length
+            trail.unshift supply.shift
+          end
+
+          trail
+        else
+          value
         end
       end
     end

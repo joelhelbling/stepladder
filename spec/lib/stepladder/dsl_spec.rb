@@ -1,50 +1,50 @@
 require 'spec_helper'
 
 module Stepladder
-  describe Dsl do
-    include Stepladder::Dsl
+  describe DSL do
+    include described_class
 
     describe '#source_worker' do
       context 'normal usage' do
         context 'with an array' do
           Given(:worker) { source_worker [:fee, :fi] }
 
-          Then { worker.product == :fee }
-          And  { worker.product == :fi }
-          And  { worker.product.nil? }
+          Then { worker.shift == :fee }
+          And  { worker.shift == :fi }
+          And  { worker.shift.nil? }
         end
 
         context 'with a range' do
           Given(:worker) { source_worker (0..2) }
 
-          Then { worker.product == 0 }
-          And  { worker.product == 1 }
-          And  { worker.product == 2 }
-          And  { worker.product.nil? }
+          Then { worker.shift == 0 }
+          And  { worker.shift == 1 }
+          And  { worker.shift == 2 }
+          And  { worker.shift.nil? }
         end
 
         context 'with a string' do
           Given(:worker) { source_worker 'abc' }
 
-          Then { worker.product == 'a' }
-          And  { worker.product == 'b' }
-          And  { worker.product == 'c' }
-          And  { worker.product.nil? }
+          Then { worker.shift == 'a' }
+          And  { worker.shift == 'b' }
+          And  { worker.shift == 'c' }
+          And  { worker.shift.nil? }
         end
 
         context 'with a hash' do
           Given(:worker) { source_worker({foo: 2, bar: 'yarr'}) }
 
-          Then { worker.product == [:foo, 2] }
-          And  { worker.product == [:bar, 'yarr'] }
-          And  { worker.product.nil? }
+          Then { worker.shift == [:foo, 2] }
+          And  { worker.shift == [:bar, 'yarr'] }
+          And  { worker.shift.nil? }
         end
 
         context 'with a anything else' do
           Given(:worker) { source_worker :foo }
 
-          Then { worker.product == :foo }
-          And  { worker.product.nil? }
+          Then { worker.shift == :foo }
+          And  { worker.shift.nil? }
         end
 
         context 'with a callable' do
@@ -55,10 +55,10 @@ module Stepladder
             end
           end
 
-          Then { worker.product == :doh }
-          And  { worker.product == :ray }
-          And  { worker.product == :me }
-          And  { worker.product.nil? }
+          Then { worker.shift == :doh }
+          And  { worker.shift == :ray }
+          And  { worker.shift == :me }
+          And  { worker.shift.nil? }
         end
 
         context 'with a callable and an argument' do
@@ -69,10 +69,10 @@ module Stepladder
             end
           end
 
-          Then { worker.product == 'SO' }
-          And  { worker.product == 'LA' }
-          And  { worker.product == 'TI' }
-          And  { worker.product.nil? }
+          Then { worker.shift == 'SO' }
+          And  { worker.shift == 'LA' }
+          And  { worker.shift == 'TI' }
+          And  { worker.shift.nil? }
         end
       end
 
@@ -110,10 +110,10 @@ module Stepladder
 
         When { source | relay }
 
-        Then { relay.product == 'be++er' }
-        And  { relay.product == 's+ronger' }
-        And  { relay.product == 'fas+er' }
-        And  { relay.product.nil? }
+        Then { relay.shift == 'be++er' }
+        And  { relay.shift == 's+ronger' }
+        And  { relay.shift == 'fas+er' }
+        And  { relay.shift.nil? }
       end
 
       context 'illegal usage' do
@@ -138,11 +138,39 @@ module Stepladder
 
         When { source | worker }
 
-        Then { worker.product == 0 }
-        And  { worker.product == 1 }
-        And  { worker.product == 2 }
-        And  { worker.product.nil? }
+        Then { worker.shift == 0 }
+        And  { worker.shift == 1 }
+        And  { worker.shift == 2 }
+        And  { worker.shift.nil? }
         And  { side_effect == [0, 2, 4] }
+      end
+
+      context 'mode' do
+        Given(:source) { source_worker [[:foo], [:bar]] }
+        Given(:unsafe_task) { Proc.new {|v| v << :boo } }
+
+        When { source | worker }
+
+        context ':normal (default)' do
+          Given(:worker) do
+            side_worker(&unsafe_task)
+          end
+
+          Then { worker.shift == [:foo, :boo] }
+          And  { worker.shift == [:bar, :boo] }
+          And  { worker.shift.nil? }
+
+        end
+
+        context ':hardened' do
+          Given(:worker) do
+            side_worker :hardened, &unsafe_task
+          end
+
+          Then { worker.shift == [:foo] }
+          And  { worker.shift == [:bar] }
+          And  { worker.shift.nil? }
+        end
       end
 
       context 'illegal usage' do
@@ -166,8 +194,8 @@ module Stepladder
            filter_worker { |v| v % 2 == 0 }
         end
 
-        Then { filter.product == 2 }
-        And { expect(filter.product).to be_nil }
+        Then { filter.shift == 2 }
+        And { expect(filter.shift).to be_nil }
       end
 
       context 'illegal usage' do
@@ -198,29 +226,28 @@ module Stepladder
     end
 
     describe '#batch_worker' do
-      Given(:source) { source_worker (0..7) }
-
       context 'normal usage' do
         When { source | worker }
 
         context 'with specified "gathering" batch size' do
+          Given(:source) { source_worker (0..7) }
           Given(:worker) do
             batch_worker gathering: 3
           end
 
-          Then { worker.product == [ 0, 1, 2 ] }
-          And  { worker.product == [ 3, 4, 5 ] }
-          And  { worker.product == [ 6, 7 ] }
-          And  { worker.product.nil? }
+          Then { worker.shift == [ 0, 1, 2 ] }
+          And  { worker.shift == [ 3, 4, 5 ] }
+          And  { worker.shift == [ 6, 7 ] }
+          And  { worker.shift.nil? }
         end
 
         context 'defaults to batch size of 1' do
           Given(:source) { source_worker [8,9] }
           Given(:worker) { batch_worker }
 
-          Then { worker.product == [ 8 ] }
-          And  { worker.product == [ 9 ] }
-          And  { worker.product.nil? }
+          Then { worker.shift == [ 8 ] }
+          And  { worker.shift == [ 9 ] }
+          And  { worker.shift.nil? }
         end
 
         context 'collects until condition' do
@@ -229,10 +256,10 @@ module Stepladder
             batch_worker { |n| n % 2 == 0 }
           end
 
-          Then { worker.product == [ 1, 2 ] }
-          And  { worker.product == [ 3, 4 ] }
-          And  { worker.product == [ 5 ] }
-          And  { worker.product.nil? }
+          Then { worker.shift == [ 1, 2 ] }
+          And  { worker.shift == [ 3, 4 ] }
+          And  { worker.shift == [ 5 ] }
+          And  { worker.shift.nil? }
         end
       end
 
@@ -247,8 +274,78 @@ module Stepladder
             Given(:invocation) { -> { batch_worker() { |a,b| :foo } } }
             Then { expect(invocation).to raise_error(/arity == 1/) }
           end
-
         end
+      end
+    end
+
+    context '#splitter_worker' do
+      context 'normal usage' do
+        Given(:source) { source_worker ['A bold', 'move northward'] }
+        Given(:worker) do
+          splitter_worker do |value|
+            value.split(' ')
+          end
+        end
+
+        When { source | worker }
+
+        Then { worker.shift == 'A' }
+        And  { worker.shift == 'bold' }
+        And  { worker.shift == 'move' }
+        And  { worker.shift == 'northward' }
+        And  { worker.shift.nil? }
+      end
+
+      context 'always returns an array' do
+        Given(:source) { source_worker [:foo] }
+        Given(:worker) do
+          splitter_worker { |value| value }
+        end
+
+        When { source | worker }
+
+        Then { worker.shift == :foo }
+        And  { worker.shift == nil }
+      end
+
+      context 'illegal usage' do
+        context 'requires a callable' do
+          context 'with arity == 0' do
+            Given(:invocation) { -> { splitter_worker() { [] } } }
+            Then { expect(invocation).to raise_error(/arity == 1/) }
+          end
+
+          context 'with arity > 1' do
+            Given(:invocation) { -> { splitter_worker() { |a,b| [] } } }
+            Then { expect(invocation).to raise_error(/arity == 1/) }
+          end
+        end
+      end
+    end
+
+    context '#trailing_worker' do
+      context 'normal usage' do
+        Given(:source) { source_worker (0..5) }
+        Given(:worker) { trailing_worker 4 }
+
+        When { source | worker }
+
+        Then { worker.shift == [3,2,1,0] }
+        And  { worker.shift == [4,3,2,1] }
+        And  { worker.shift == [5,4,3,2] }
+        And  { worker.shift.nil? }
+      end
+
+      context 'default trail size' do
+        Given(:source) { source_worker (0..3) }
+        Given(:worker) { trailing_worker }
+
+        When { source | worker }
+
+        Then { worker.shift == [1,0] }
+        And  { worker.shift == [2,1] }
+        And  { worker.shift == [3,2] }
+        And  { worker.shift.nil? }
       end
     end
 
