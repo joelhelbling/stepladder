@@ -1,3 +1,5 @@
+require 'stepladder/roster'
+
 module Stepladder
   class Gang
     attr_accessor :workers
@@ -31,36 +33,12 @@ module Stepladder
     end
     alias_method :"|", :supplies
 
-    def roster_push(worker)
-      if worker
-        worker.supply = @workers.last
-        @workers << worker
-      end
-    end
-    alias_method :"<<", :roster_push
-
-    def roster_pop
-      workers.pop.tap do |popped|
-        popped.supply = nil
-      end
-    end
-
-    def roster_shift
-      workers.shift.tap do
-        workers.first.supply = nil
-      end
-    end
-
-    def roster_unshift(worker)
-      workers.first.supply = worker
-      workers.unshift worker
-    end
     private
 
     def link(workers)
       @workers = [workers.shift]
       while worker = workers.shift do
-        self << worker
+        Roster[self] << worker
       end
     end
 
